@@ -179,7 +179,6 @@ else:
     for _, u_row in active_users.iterrows():
         # ছবি ডেপ্লয়মেন্ট লজিক
         if u_row['profile_pic']:
-            img_data = io.BytesIO(u_row['profile_pic']).getvalue()
             st.sidebar.image(u_row['profile_pic'], width=35)
         else:
             st.sidebar.image(DEFAULT_AVATAR, width=35)
@@ -307,7 +306,7 @@ else:
             show_live_chats()
             
             with st.form("chat_send_form", clear_on_submit=True):
-                msg_txt = st.text_input("মেсеজ ইনপুট করুন...")
+                msg_txt = st.text_input("মেসেজ ইনপুট করুন...")
                 if st.form_submit_button("ব্রডকাস্ট ডাটা ✈️"):
                     if msg_txt:
                         conn = get_db_connection()
@@ -318,9 +317,9 @@ else:
                         conn.close()
                         st.rerun()
 
-        # 👤 ৪. আমার প্রোفাইল এডিট করুন
+        # 👤 ৪. আমার প্রোফাইল এডিট করুন
         elif st.session_state.current_navigation == "👤 আমার প্রোফাইল এডিট করুন":
-            st.title("👤 মাই ড্যাсходোর্ড আইডি কার্ড কন্ট্রোল")
+            st.title("👤 মাই ড্যাсходোর্ড আইডি কার্ড快速কন্ট্রোল")
             with st.form("profile_control_form"):
                 f_name = st.text_input("আপনার নাম (Full Name)", value=my_meta["fullname"])
                 w_num = st.text_input("হোয়াটসঅ্যাপ নোড নাম্বার", value=my_meta["whatsapp"])
@@ -376,7 +375,7 @@ else:
                     conn.close()
                     st.success("টাস্ক সফলভাবে ইস্যু করা হয়েছে!")
 
-        # ⚡ ७. মডারেটর লাইভ টাস্ক আপডেট
+        # ⚡ ৭. মডারেটর লাইভ টাস্ক আপডেট (ব্র্যাককেট সিনট্যাক্স ফিক্সড!)
         elif st.session_state.current_navigation == "⚡ মডারেটর লাইভ টাস্ক আপডেট":
             st.title("⚡ মডারেটর লাইভ টাস্ক আপডেট টার্মিনাল")
             @st.fragment(run_every=1)
@@ -387,5 +386,75 @@ else:
                 for idx, t_row in tasks_current.iterrows():
                     with st.expander(f"📌 টাস্ক আইডি: {t_row['id']} | কর্মী: {t_row['editor']} | স্ট্যাটাস: {t_row['status']}"):
                         with st.form(f"mod_form_{t_row['id']}"):
-                            m_status = st.selectbox("স্ট্যাটাস আপডেট:", ["Pending", "Started", "Submitted", "Approved", "Revision"], index=["Pending", "Started", "Submitted", "Approved", "Revision"].index(t_row['status']))
-                            m_link = st.text_input("ফাইনাল ডেলিভারি লিংক:", value=t_
+                            current_status = t_row['status'] if t_row['status'] in ["Pending", "Started", "Submitted", "Approved", "Revision"] else "Pending"
+                            m_status = st.selectbox("স্ট্যাটাস আপডেট:", ["Pending", "Started", "Submitted", "Approved", "Revision"], index=["Pending", "Started", "Submitted", "Approved", "Revision"].index(current_status))
+                            m_link = st.text_input("ফাইনাল ডেলিভারি লিংক:", value=t_row['final_link'])
+                            m_rev = st.text_input("রিভিশন নোট:", value=t_row['revision_note'])
+                            if st.form_submit_button("নোড আপডেট সাবমিট ⚙️"):
+                                conn = get_db_connection()
+                                cursor = conn.cursor()
+                                cursor.execute("UPDATE tasks SET status=?, final_link=?, revision_note=? WHERE id=?", (m_status, m_link, m_rev, t_row['id']))
+                                conn.commit()
+                                conn.close()
+                                st.success("টাস্ক লাইভ সিঙ্ক সফল!")
+            show_live_tasks_for_mod()
+
+        # 📉 ৮. লাইভ প্রফিট ও রিপোর্ট হাব (প্রটেক্টেড)
+        elif is_verified and st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব":
+            st.title("📉 ফিনান্সিয়াল লেজার ও মান্থলি গোল")
+            df_orders["net_profit"] = df_orders["total_price"] - (df_orders["editor_cost"] + df_orders["operation_cost"])
+            total_net_profit = df_orders[df_orders["month_tag"] == current_month_tag]['net_profit'].sum()
+            month_goal_row = df_goals[df_goals["month_tag"] == current_month_tag]
+            target_amount = month_goal_row["target_amount"].values[0] if not month_goal_row.empty else 150000.0
+            
+            if total_net_profit >= target_amount:
+                st.markdown(f"<div class='goal-success'><h3>🎉 মিশন সাকসেসফুল! টার্গেট এچیভড!</h3><p>নেট প্রফিট অর্জিত হয়েছে <b>{total_net_profit:,.0f} BDT</b>!</p></div>", unsafe_allow_html=True)
+            else:
+                shortage = target_amount - total_net_profit
+                st.markdown(f"<div class='goal-failed'><h3>⚠️ অ্যালার্ট: টার্গেট ফেইলুর রিস্ক!</h3><p>শর্টেজ: <b>{shortage:,.0f} BDT</b></p></div>", unsafe_allow_html=True)
+            st.dataframe(df_orders, use_container_width=True)
+
+        # 👮 ৯. অ্যাডমিন ও CTO কন্ট্রোল প্যানেল (ভেরিফাই গেটওয়ে নোড - প্রটেক্টেড)
+        elif is_verified and st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল":
+            st.title("👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল")
+            st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
+            for idx, u_row in df_users_all.iterrows():
+                col_v1, col_v2 = st.columns([3, 1])
+                with col_v1:
+                    st.write(f"👤 **{u_row['fullname']}** (`{u_row['role']}`) | {'Verified 🛡️' if u_row['is_officer_verified'] == 1 else 'Unverified ❌'}")
+                with col_v2:
+                    if u_row['is_officer_verified'] == 0:
+                        if st.button("ভেরিফাই এনাবল (Make Trusted) 🛠️", key=f"v_btn_{u_row['username']}"):
+                            conn = get_db_connection()
+                            conn.cursor().execute("UPDATE users SET is_officer_verified=1 WHERE username=?", (u_row['username'],))
+                            conn.commit()
+                            conn.close()
+                            st.success("ইউজার ভেরিফাইড!")
+                            st.rerun()
+                    else:
+                        if st.button("ভেরিফিকেশন রিমুভ ⚠️", key=f"uv_btn_{u_row['username']}"):
+                            conn = get_db_connection()
+                            conn.cursor().execute("UPDATE users SET is_officer_verified=0 WHERE username=?", (u_row['username'],))
+                            conn.commit()
+                            conn.close()
+                            st.warning("ভেরিফিকেশন রিমুভড!")
+                            st.rerun()
+
+        # 🕵️ ১০. সিক্রেট ইনবক্স স্পাইডার (প্রটেক্টেড)
+        elif is_verified and st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)":
+            st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার (Enterprise Spy Terminal)")
+            conn = get_db_connection()
+            df_spy = pd.read_sql_query("SELECT * FROM chat_messages ORDER BY id DESC", conn)
+            conn.close()
+            st.dataframe(df_spy, use_container_width=True)
+
+    # ==========================================
+    # ৪. ১ সেকেন্ড গ্লোবাল লাইভ হার্টবিট রিলোডার
+    # ==========================================
+    st.markdown("---")
+    st.caption(f"🟢 Server Node Status: Active | 🚀 Real-time Tracking Engine Active (1s heartbeats)")
+    
+    # এডিটর এবং লাইভ চ্যাট ছাড়া বাকি পেজগুলোর জন্য অটো ১ সেকেন্ড লুপ ব্যাকগ্রাউন্ড রিলোড ট্র্রিগার
+    if st.session_state.current_navigation not in ["💬 লাইভ চ্যাট রুম", "⚡ মডারেটর লাইভ টাস্ক আপডেট"] and not is_editor:
+        time.sleep(1)
+        st.rerun()
