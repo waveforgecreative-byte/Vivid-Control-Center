@@ -160,10 +160,9 @@ if "current_navigation" not in st.session_state:
     st.session_state.current_navigation = "📊 লাইভ ড্যাশবোর্ড"
 
 # ==========================================
-# ৩. ক্লোজড গেটওয়ে লগইন প্যানেল (নতুন বিউটিফাইড UI)
+# ৩. ক্লোজড গেটওয়ে লগইন প্যানেল
 # ==========================================
 if not st.session_state.logged_in:
-    # সেন্ট্রাল রেন্ডারিং এর জন্য খালি কলাম আর্কিটেকচার
     _, center_col, _ = st.columns([1, 1.8, 1])
     
     with center_col:
@@ -174,7 +173,6 @@ if not st.session_state.logged_in:
         </div>
         """, unsafe_allow_html=True)
         
-        # ইনপুট প্যানেল ফর্ম
         with st.form("cyber_login_form", clear_on_submit=False):
             u_id = st.text_input("🔑 ইউজার আইডি (Username)", placeholder="Enter your system ID...")
             u_pass = st.text_input("🔒 এক্সেস কী (Password)", type="password", placeholder="••••••••")
@@ -303,13 +301,13 @@ else:
             ]
             st.warning("🔒 আপনি বর্তমানে আন-ভেরিফাইড মোডে আছেন। আপনি শুধু ডাটা ইনপুট এবং লাইভ চ্যাট করতে পারবেন।")
 
-        selected_menu = st.sidebar.radio("মডিউল সিলেকশন", menu_options, index=0)
+        selected_menu = st.sidebar.radio("মডিউল সিলেকশন", menu_options, index=menu_options.index(st.session_state.current_navigation) if st.session_state.current_navigation in menu_options else 0)
         st.session_state.current_navigation = selected_menu
 
         if has_notice_power:
-            with st.sidebar.expander("📢 লাইভ নোটিশ চেঞ্জার প্যানেল"):
+            with st.sidebar.expander("⚙️ লাইভ নোটিশ চেঞ্জার প্যানেল", expanded=True):
                 with st.form("notice_change_form"):
-                    new_notice_text = st.text_area("নতুন গ্লোবাল নোটিশ লিখুন:")
+                    new_notice_text = st.text_area("নতুন গ্লোবাল নোটিশ লিখুন:", value=live_notice['notice_text'])
                     if st.form_submit_button("লাইভ ব্রডকাস্ট করুন 📡"):
                         if new_notice_text:
                             conn = get_db_connection()
@@ -417,13 +415,15 @@ else:
                     conn.close()
                     st.success("অर्डरটি ডাটাবেসে সেভ হয়েছে!")
 
-        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর
+        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর (স্ক্রিনশটের বাগটি এখানে ফিক্স করা হয়েছে)
         elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর" and is_verified:
             st.title("🎯 টিম টাস্ক ডিস্ট্রিবিউটর টার্মিনাল")
+            
             if not has_admin_power:
                 st.error("🔒 দুঃখিত, এই পাওয়ার আপনার রোলের জন্য বরাদ্দ নয়।")
             else:
                 tab1, tab2 = st.tabs(["🎬 এডিটর লাইভ টাস্ক বক্স", "⚡ মডারেটর লাইভ টাস্ক বক্স"])
+                
                 with tab1:
                     with st.form("editor_task_form", clear_on_submit=True):
                         e_client = st.text_input("ক্লায়েন্ট রেফারেন্স কোড:")
@@ -431,37 +431,62 @@ else:
                         e_detail = st.text_area("কাজের ডিটেইলস:")
                         e_payment = st.number_input("বজেট/ফি (Editor BDT):", min_value=0.0)
                         if st.form_submit_button("এডিটর টাস্ক ইস্যু করুন 🚀"):
-                            conn = get_db_connection()
-                            cursor = conn.cursor()
-                            cursor.execute("INSERT INTO tasks (client, editor, task_detail, assign_time, start_time, submit_time, status, final_link, revision_note, editor_payment, target_type) VALUES (?,?,?,?,'','','Pending','','',?,'Editor')",
-                                           (e_client, e_editor.lower().strip(), e_detail, datetime.now().strftime("%I:%M %p"), e_payment))
-                            conn.commit()
-                            conn.close()
-                            st.success("টাস্ক সফলভাবে অ্যাসাইন হয়েছে!")
+                            if e_client and e_editor:
+                                conn = get_db_connection()
+                                cursor = conn.cursor()
+                                cursor.execute("INSERT INTO tasks (client, editor, task_detail, assign_time, start_time, submit_time, status, final_link, revision_note, editor_payment, target_type) VALUES (?,?,?,?,'','','Pending','','',?,'Editor')",
+                                               (e_client, e_editor.lower().strip(), e_detail, datetime.now().strftime("%I:%M %p"), e_payment))
+                                conn.commit()
+                                conn.close()
+                                st.success("টাস্ক সফলভাবে অ্যাসাইন হয়েছে!")
+                            else:
+                                st.error("ক্লায়েন্ট কোড এবং এডিটর ইউজারনেম আবশ্যিক!")
+                
+                with tab2:
+                    with st.form("moderator_task_form", clear_on_submit=True):
+                        m_client = st.text_input("ক্লায়েন্ট রেফারেন্স কোড (Moderator):")
+                        m_mod = st.text_input("টার্গেট মডারেটর (Username):")
+                        m_detail = st.text_area("কাজের ডিটেইলস (Moderator):")
+                        m_payment = st.number_input("বজেট/ফি (Moderator BDT):", min_value=0.0)
+                        if st.form_submit_button("মডারেটর টাস্ক ইস্যু করুন ⚡"):
+                            if m_client and m_mod:
+                                conn = get_db_connection()
+                                cursor = conn.cursor()
+                                cursor.execute("INSERT INTO tasks (client, editor, task_detail, assign_time, start_time, submit_time, status, final_link, revision_note, editor_payment, target_type) VALUES (?,?,?,?,'','','Pending','','',?,'Moderator')",
+                                               (m_client, m_mod.lower().strip(), m_detail, datetime.now().strftime("%I:%M %p"), m_payment))
+                                conn.commit()
+                                conn.close()
+                                st.success("মডারেটর টাস্ক সফলভাবে অ্যাসাইন হয়েছে!")
+                            else:
+                                st.error("ক্লায়েন্ট কোড এবং মডারেটর ইউজারনেম আবশ্যিক!")
 
-        # ⚡ ৭. মডারেটর লাইভ টাস্ক আপডেট
+        # ⚡ ৭. মডারেটর লাইভ টাস্ক আদেশ/আপডেট
         elif st.session_state.current_navigation == "⚡ মডারেটর লাইভ টাস্ক আদেশ" and is_verified:
             st.title("⚡ মডারেটর লাইভ টাস্ক আপডেট টার্মিনাল")
             conn = get_db_connection()
             tasks_current = pd.read_sql_query("SELECT * FROM tasks ORDER BY id DESC", conn)
             conn.close()
-            for idx, t_row in tasks_current.iterrows():
-                with st.expander(f"📌 [{t_row['target_type']}] টাস্ক আইডি: {t_row['id']} | স্ট্যাটাস: {t_row['status']}"):
-                    with st.form(f"mod_form_{t_row['id']}"):
-                        m_status = st.selectbox("স্ট্যাটাস আপডেট:", ["Pending", "Started", "Submitted", "Approved", "Revision"])
-                        m_link = st.text_input("ফাইনাল লিংক:", value=t_row['final_link'])
-                        m_rev = st.text_input("রিভিশন নোট:", value=t_row['revision_note'])
-                        if st.form_submit_button("আপডেট নোড ⚙️"):
-                            conn = get_db_connection()
-                            cursor = conn.cursor()
-                            cursor.execute("UPDATE tasks SET status=?, final_link=?, revision_note=? WHERE id=?", (m_status, m_link, m_rev, t_row['id']))
-                            conn.commit()
-                            conn.close()
-                            st.success("লাইভ সিঙ্ক সফল!")
-                            st.rerun()
+            if tasks_current.empty:
+                st.info("কোনো লাইভ টাস্ক রেকর্ড পাওয়া যায়নি।")
+            else:
+                for idx, t_row in tasks_current.iterrows():
+                    with st.expander(f"📌 [{t_row['target_type']}] টাস্ক আইডি: {t_row['id']} | স্ট্যাটাস: {t_row['status']}"):
+                        with st.form(f"mod_form_{t_row['id']}"):
+                            current_status = t_row['status'] if t_row['status'] in ["Pending", "Started", "Submitted", "Approved", "Revision"] else "Pending"
+                            m_status = st.selectbox("স্ট্যাটাস আপডেট:", ["Pending", "Started", "Submitted", "Approved", "Revision"], index=["Pending", "Started", "Submitted", "Approved", "Revision"].index(current_status))
+                            m_link = st.text_input("ফাইনাল লিংক:", value=t_row['final_link'])
+                            m_rev = st.text_input("রিভিশন নোট:", value=t_row['revision_note'])
+                            if st.form_submit_button("আপডেট নোড ⚙️"):
+                                conn = get_db_connection()
+                                cursor = conn.cursor()
+                                cursor.execute("UPDATE tasks SET status=?, final_link=?, revision_note=? WHERE id=?", (m_status, m_link, m_rev, t_row['id']))
+                                conn.commit()
+                                conn.close()
+                                st.success("লাইভ সিঙ্ক সফল!")
+                                st.rerun()
 
         # 👮 ৮. অ্যাডমিন ও CTO প্যানেল
-        elif st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল" and is_verified:
+        elif st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO朤কন্ট্রোল প্যানেল" and is_verified:
             st.title("👮 অ্যাডমিন ও ওনার কন্ট্রোল প্যানেল")
             st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
             for idx, u_row in df_users_all.iterrows():
