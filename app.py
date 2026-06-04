@@ -122,57 +122,27 @@ if "current_navigation" not in st.session_state:
     st.session_state.current_navigation = "📊 লাইভ ড্যাশবোর্ড"
 
 # ==========================================
-# ৩. লগইন ও নতুন আইডি ক্রিয়েশন (Sign Up) হাব
+# ৩. ক্লোজড গেটওয়ে লগইন প্যানেল (No Sign Up)
 # ==========================================
 if not st.session_state.logged_in:
     st.title("🌌 Vivid Core IT Ultra Command Center")
+    st.subheader("🔐 সিকিউর সার্ভার লগইন নোড")
     
-    auth_tabs = st.tabs(["🔐 সার্ভার লগইন", "📝 নতুন আইডি তৈরি করুন (Sign Up)"])
+    u_id = st.text_input("ইউজার আইডি (Username)")
+    u_pass = st.text_input("এক্সেস কী (Password)", type="password")
     
-    with auth_tabs[0]:
-        u_id = st.text_input("ইউজার আইডি (Username)", key="login_uid")
-        u_pass = st.text_input("এক্সেস কী (Password)", type="password", key="login_pass")
+    if st.button("সার্ভার নোড এথেন্টিকেশন 🔐", use_container_width=True):
+        conn = get_db_connection()
+        user_data = pd.read_sql_query("SELECT * FROM users WHERE username=?", conn, params=(u_id.lower().strip(),))
+        conn.close()
         
-        if st.button("সার্ভার নোড এথেন্টিকেশন 🔐", use_container_width=True):
-            conn = get_db_connection()
-            user_data = pd.read_sql_query("SELECT * FROM users WHERE username=?", conn, params=(u_id.lower().strip(),))
-            conn.close()
-            
-            if not user_data.empty and user_data.iloc[0]["password"] == u_pass:
-                st.session_state.logged_in = True
-                st.session_state.user = u_id.lower().strip()
-                update_user_heartbeat(u_id.lower().strip())
-                st.rerun()
-            else:
-                st.error("ভুল ইউজার আইডি বা পাসওয়ার্ড! আবার চেষ্টা করুন।")
-                
-    with auth_tabs[1]:
-        with st.form("signup_form", clear_on_submit=True):
-            st.subheader("🛠️ নতুন মেম্বার রেজিস্ট্রেশন গেটওয়ে")
-            new_uid = st.text_input("ইউজার আইডি (Username - ছোট হাতের অক্ষরে, স্পেস ছাড়া):")
-            new_pass = st.text_input("পাসওয়ার্ড (Password):", type="password")
-            new_fullname = st.text_input("পূর্ণ নাম (Full Name):")
-            new_role = st.selectbox("টিম রোল সিলেক্ট করুন:", ["Chairman", "CEO", "CTO & Lead Developer", "Co-Founder", "Operation Officer", "Manager", "Moderator", "Editor", "Internee"])
-            new_whatsapp = st.text_input("হোয়াটসঅ্যাপ নাম্বার:")
-            
-            if st.form_submit_button("নতুন অ্যাকাউন্ট ডাটাবেসে সেভ করুন 💾"):
-                clean_uid = new_uid.lower().strip()
-                if not clean_uid or not new_pass or not new_fullname:
-                    st.error("❌ ইউজার আইডি, পাসওয়ার্ড এবং পূর্ণ নাম অবশ্যই দিতে হবে!")
-                else:
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT COUNT(*) FROM users WHERE username=?", (clean_uid,))
-                    if cursor.fetchone()[0] > 0:
-                        st.error("⚠️ এই ইউজার আইডিটি ইতিমধ্যে ব্যবহার করা হয়েছে! অন্য আইডি ট্রাই করুন।")
-                        conn.close()
-                    else:
-                        cursor.execute("""INSERT INTO users (username, password, fullname, role, whatsapp, bio, skills, is_officer_verified, last_seen) 
-                                       VALUES (?, ?, ?, ?, ?, '', '', 0, '')""", 
-                                       (clean_uid, new_pass, new_fullname, new_role, new_whatsapp))
-                        conn.commit()
-                        conn.close()
-                        st.success("🎉 অ্যাকাউন্ট তৈরি সফল হয়েছে! এবার পাশের 'সার্ভার লগইন' ট্যাবে গিয়ে লগইন করুন।")
+        if not user_data.empty and user_data.iloc[0]["password"] == u_pass:
+            st.session_state.logged_in = True
+            st.session_state.user = u_id.lower().strip()
+            update_user_heartbeat(u_id.lower().strip())
+            st.rerun()
+        else:
+            st.error("ভুল ইউজার আইডি বা পাসওয়ার্ড! আবার চেষ্টা করুন।")
 
 # ==========================================
 # ৪. মেইন ড্যাশবোর্ড ইন্টারফেস (লগইন সাকসেসড)
@@ -196,6 +166,9 @@ else:
     is_editor = user_role.lower() == "editor"
     is_verified = int(my_meta["is_officer_verified"]) == 1
     
+    # আইডি তৈরীর বিশেষ পারমিশন চেকার (CEO, CTO, Manager)
+    has_admin_power = user_role in ["CEO", "CTO & Lead Developer", "Manager", "Chairman"]
+
     # সাইডবার ইন্টারফেস ও প্রোফাইল নোড
     st.sidebar.markdown("### 🌌 Vivid Core Node")
     if my_meta["profile_pic"]:
@@ -266,7 +239,8 @@ else:
             "⚡ মডারেটর লাইভ টাস্ক আপডেট"
         ]
         
-        if is_verified:
+        # শর্তাধীন মেনু শোয়িং (ভেরিফাইড অথবা অ্যাডমিন পাওয়ার থাকলে)
+        if is_verified or has_admin_power:
             menu_options.append("📉 লাইভ প্রফিট ও রিপোর্ট হাব")
             menu_options.append("👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল")
             menu_options.append("🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)")
@@ -416,7 +390,7 @@ else:
                             st.rerun()
 
         # 📉 ৮. লাইভ প্রফিট ও রিপোর্ট হাব (প্রটেক্টেড)
-        elif is_verified and st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব":
+        elif (is_verified or has_admin_power) and st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব":
             st.title("📉 ফিনান্সিয়াল লেজার ও মান্থলি গোল")
             df_orders["net_profit"] = df_orders["total_price"] - (df_orders["editor_cost"] + df_orders["operation_cost"])
             total_net_profit = df_orders[df_orders["month_tag"] == current_month_tag]['net_profit'].sum()
@@ -430,9 +404,43 @@ else:
                 st.markdown(f"<div class='goal-failed'><h3>⚠️ অ্যালার্ট: টার্গেট ফেইলুর রিস্ক!</h3><p>শর্টেজ: <b>{shortage:,.0f} BDT</b></p></div>", unsafe_allow_html=True)
             st.dataframe(df_orders, use_container_width=True)
 
-        # 👮 ৯. অ্যাডমিন ও CTO প্যানেল (প্রটেক্টেড)
-        elif is_verified and st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল":
+        # 👮 ৯. অ্যাডমিন ও CTO প্যানেল (এখানে আইডি ক্রিয়েশন টার্মিনাল লক করা হয়েছে)
+        elif (is_verified or has_admin_power) and st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল":
             st.title("👮 অ্যাডমিন ও ওনার কন্ট্রোল প্যানেল")
+            
+            # --- সিকিউর আইডি ক্রিয়েশন গেটওয়ে (শুধুমাত্র CEO, CTO, Manager দেখতে পারবে) ---
+            if has_admin_power:
+                st.markdown("---")
+                with st.expander("📝 🔐 সিকিউর টিম মেম্বার আইডি ক্রিয়েশন টার্মিনাল (অ্যাডমিন এক্সক্লুসিভ)", expanded=False):
+                    with st.form("admin_create_user_form", clear_on_submit=True):
+                        adm_uid = st.text_input("ইউজার আইডি (Username - ছোট হাতের অক্ষরে, স্পেস ছাড়া):")
+                        adm_pass = st.text_input("ডিফল্ট পাসওয়ার্ড (Password):")
+                        adm_fullname = st.text_input("পূর্ণ নাম (Full Name):")
+                        adm_role = st.selectbox("মেম্বারের টিম রোল সিলেক্ট করুন:", ["Chairman", "CEO", "CTO & Lead Developer", "Co-Founder", "Operation Officer", "Manager", "Moderator", "Editor", "Internee"])
+                        adm_whatsapp = st.text_input("হোয়াটসঅ্যাপ নাম্বার:")
+                        
+                        if st.form_submit_button("নতুন মেম্বার ডাটাবেসে যুক্ত করুন ➕"):
+                            clean_adm_uid = adm_uid.lower().strip()
+                            if not clean_adm_uid or not adm_pass or not adm_fullname:
+                                st.error("ইউজার আইডি, পাসওয়ার্ড এবং পূর্ণ নাম আবশ্যক!")
+                            else:
+                                conn = get_db_connection()
+                                cursor = conn.cursor()
+                                cursor.execute("SELECT COUNT(*) FROM users WHERE username=?", (clean_adm_uid,))
+                                if cursor.fetchone()[0] > 0:
+                                    st.error("এই ইউজার আইডিটি ইতিমধ্যে ডাটাবেসে রয়েছে!")
+                                    conn.close()
+                                else:
+                                    # অ্যাডমিন প্যানেল থেকে আইডি বানালে অটো ভেরিফাইড (১) হিসেবে সেভ হবে
+                                    cursor.execute("""INSERT INTO users (username, password, fullname, role, whatsapp, bio, skills, is_officer_verified, last_seen) 
+                                                   VALUES (?, ?, ?, ?, ?, '', '', 1, '')""", 
+                                                   (clean_adm_uid, adm_pass, adm_fullname, adm_role, adm_whatsapp))
+                                    conn.commit()
+                                    conn.close()
+                                    st.success(f"🎉 সফলভাবে নতুন আইডি তৈরি হয়েছে! ইউজারনেম: `{clean_adm_uid}`")
+                                    st.rerun()
+                st.markdown("---")
+
             st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
             for idx, u_row in df_users_all.iterrows():
                 col_v1, col_v2 = st.columns([3, 1])
@@ -457,8 +465,8 @@ else:
                                 st.warning("ভেরিফিকেশন রিমুভড!")
                                 st.rerun()
 
-        # 🕵️ ১০. সিক্রেট ইনবক্স概念 স্পাইডার (Spy) (প্রটেক্টেড)
-        elif is_verified and st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)":
+        # 🕵️ ১০. সিক্রেট ইনবক্স স্পাইডার (Spy) (প্রটেক্টেড)
+        elif (is_verified or has_admin_power) and st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)":
             st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার (Enterprise Spy Terminal)")
             conn = get_db_connection()
             df_spy = pd.read_sql_query("SELECT * FROM chat_messages ORDER BY id DESC", conn)
