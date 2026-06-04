@@ -14,6 +14,34 @@ st.markdown("""
     body { background-color: #0a0f1d; color: #e2e8f0; }
     .stApp { background: linear-gradient(145deg, #070a14, #0f172a); }
     
+    /* 🔐 আল্ট্রা প্রিমিয়াম সাইবার লগইন ইন্টারফেস */
+    .login-wrapper {
+        max-width: 480px;
+        margin: 60px auto;
+        padding: 40px;
+        background: rgba(15, 23, 42, 0.65);
+        border-radius: 24px;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 40px rgba(56, 189, 248, 0.05);
+        backdrop-filter: blur(20px);
+        text-align: center;
+    }
+    .login-header {
+        font-size: 28px;
+        font-weight: 800;
+        background: linear-gradient(90deg, #00f2fe, #4facfe);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 5px;
+        letter-spacing: 0.5px;
+    }
+    .login-subheader {
+        font-size: 14px;
+        color: #94a3b8;
+        margin-bottom: 30px;
+        font-weight: 400;
+    }
+    
     /* গ্লোবাল নোটিশ ব্যানার */
     .notice-board {
         background: linear-gradient(90deg, #7c2d12, #9a3412);
@@ -132,27 +160,40 @@ if "current_navigation" not in st.session_state:
     st.session_state.current_navigation = "📊 লাইভ ড্যাশবোর্ড"
 
 # ==========================================
-# ৩. ক্লোজড গেটওয়ে লগইন প্যানেল (No Sign Up)
+# ৩. ক্লোজড গেটওয়ে লগইন প্যানেল (নতুন বিউটিফাইড UI)
 # ==========================================
 if not st.session_state.logged_in:
-    st.title("🌌 Vivid Core IT Ultra Command Center")
-    st.subheader("🔐 সিকিউর সার্ভার লগইন নোড")
+    # সেন্ট্রাল রেন্ডারিং এর জন্য খালি কলাম আর্কিটেকচার
+    _, center_col, _ = st.columns([1, 1.8, 1])
     
-    u_id = st.text_input("ইউজার আইডি (Username)")
-    u_pass = st.text_input("এক্সেস কী (Password)", type="password")
-    
-    if st.button("সার্ভার নোড এথেন্টিকেশন 🔐", use_container_width=True):
-        conn = get_db_connection()
-        user_data = pd.read_sql_query("SELECT * FROM users WHERE username=?", conn, params=(u_id.lower().strip(),))
-        conn.close()
+    with center_col:
+        st.markdown("""
+        <div class="login-wrapper">
+            <div class="login-header">🌌 Vivid Core IT</div>
+            <div class="login-subheader">ULTRA COMMAND CENTER • SECURE ACCESS NODE</div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        if not user_data.empty and user_data.iloc[0]["password"] == u_pass:
-            st.session_state.logged_in = True
-            st.session_state.user = u_id.lower().strip()
-            update_user_heartbeat(u_id.lower().strip())
-            st.rerun()
-        else:
-            st.error("ভুল ইউজার আইডি বা পাসওয়ার্ড! আবার চেষ্টা করুন।")
+        # ইনপুট প্যানেল ফর্ম
+        with st.form("cyber_login_form", clear_on_submit=False):
+            u_id = st.text_input("🔑 ইউজার আইডি (Username)", placeholder="Enter your system ID...")
+            u_pass = st.text_input("🔒 এক্সেস কী (Password)", type="password", placeholder="••••••••")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit_login = st.form_submit_button("সার্ভার নোড এথেন্টিকেশন ⚡", use_container_width=True)
+            
+            if submit_login:
+                conn = get_db_connection()
+                user_data = pd.read_sql_query("SELECT * FROM users WHERE username=?", conn, params=(u_id.lower().strip(),))
+                conn.close()
+                
+                if not user_data.empty and user_data.iloc[0]["password"] == u_pass:
+                    st.session_state.logged_in = True
+                    st.session_state.user = u_id.lower().strip()
+                    update_user_heartbeat(u_id.lower().strip())
+                    st.rerun()
+                else:
+                    st.error("❌ ভুল ইউজার আইডি বা পাসওয়ার্ড! নোড রিফিউজড।")
 
 # ==========================================
 # ৪. মেইন ড্যাশবোর্ড ইন্টারফেস (লগইন সাকসেসড)
@@ -179,7 +220,7 @@ else:
     has_notice_power = user_role in ["CEO", "CTO & Lead Developer", "Chairman"]
     has_admin_power = user_role in ["CEO", "CTO & Lead Developer", "Manager", "Chairman"]
 
-    # 📢 গলোবাল লাইভ নোটিশ ব্রডকাস্টার (সবার স্ক্রিনের উপরে দেখাবে)
+    # 📢 গলোবাল লাইভ নোটিশ ব্রডকাস্টার
     st.markdown(f"<div class='notice-board'>📢 <b>লাইভ নোটিশ ({live_notice['updated_by']}):</b> {live_notice['notice_text']} <small style='float:right; opacity:0.7;'>{live_notice['timestamp']}</small></div>", unsafe_allow_html=True)
 
     # সাইডবার ইন্টারফেস ও প্রোফাইল নোড
@@ -241,7 +282,6 @@ else:
 
     # 🏢 সিইও, ওনার, ম্যানেজার এবং সাধারণ মেম্বারদের মূল আর্কিটেকচার
     else:
-        # মডুলার অপশন ফিল্টারিং (ভেরিফাইড বনাম আন-ভেরিফাইড)
         if is_verified:
             menu_options = [
                 "📊 লাইভ ড্যাশবোর্ড",
@@ -261,12 +301,11 @@ else:
                 "✍️ নতুন অর্ডার এন্ট্রি",
                 "👤 আমার প্রোফাইল এডিট করুন"
             ]
-            st.warning("🔒 আপনি বর্তমানে আন-ভেরিফাইড মোডে আছেন। আপনি শুধু ডাটা ইনপুট এবং লাইভ চ্যাট করতে পারবেন। কোম্পানির আসল প্রফিট ও সম্পূর্ণ রিপোর্ট দেখতে অ্যাডমিনের ভেরিফিকেশন প্রয়োজন।")
+            st.warning("🔒 আপনি বর্তমানে আন-ভেরিফাইড মোডে আছেন। আপনি শুধু ডাটা ইনপুট এবং লাইভ চ্যাট করতে পারবেন।")
 
         selected_menu = st.sidebar.radio("মডিউল সিলেকশন", menu_options, index=0)
         st.session_state.current_navigation = selected_menu
 
-        # 📢 নোটিশ বোর্ড রাইটার প্যানেল (শুধুমাত্র CEO, CTO, Chairman দেখতে পারবে)
         if has_notice_power:
             with st.sidebar.expander("📢 লাইভ নোটিশ চেঞ্জার প্যানেল"):
                 with st.form("notice_change_form"):
@@ -311,25 +350,12 @@ else:
             target_amount = month_goal_row["target_amount"].values[0] if not month_goal_row.empty else 150000.0
             
             if total_net_profit >= target_amount:
-                st.markdown(f"<div class='goal-success'><h3>🎉 মিশন সাকসেসফুল! টার্গেট এچیভড!</h3><p>চলতি মাসের নেট প্রফিট অর্জিত হয়েছে <b>{total_net_profit:,.0f} BDT</b> (টার্গেট ছিল: {target_amount:,.0f} BDT)!</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='goal-success'><h3>🎉 মিশন সাকসেসফুল! টার্গেট এچیভড!</h3><p>চলতি মাসের নেট প্রফিট অর্জিত হয়েছে <b>{total_net_profit:,.0f} BDT</b>!</p></div>", unsafe_allow_html=True)
             else:
                 shortage = target_amount - total_net_profit
-                st.markdown(f"<div class='goal-failed'><h3>⚠️ অ্যালার্ট: টার্গেট ফেইলুর রিস্ক!</h3><p>চলতি মাসের নেট প্রফিট: <b>{total_net_profit:,.0f} BDT</b> | শর্টেজ/বাকি: <b>{shortage:,.0f} BDT</b> (টার্গেট: {target_amount:,.0f} BDT)</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='goal-failed'><h3>⚠️ অ্যালার্ট: টার্গেট ফেইলুর রিস্ক!</h3><p>চলতি মাসের নেট প্রফিট: <b>{total_net_profit:,.0f} BDT</b> | শর্টেজ/বাকি: <b>{shortage:,.0f} BDT</b></p></div>", unsafe_allow_html=True)
                 
             st.dataframe(df_orders, use_container_width=True)
-            
-            st.markdown("---")
-            with st.expander("⚙️ 📈 মান্থলি গোল/টার্গেট সেটার গেটওয়ে (ম্যানুয়াল কনফিগারেশন)", expanded=False):
-                with st.form("manual_goal_form"):
-                    new_target = st.number_input("চলতি মাসের নতুন প্রফিট টার্গেট সেট করুন (BDT):", min_value=0.0, value=float(target_amount), step=5000.0)
-                    if st.form_submit_button("নতুন টার্গেট কোড সিঙ্ক করুন 💾"):
-                        conn = get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("INSERT OR REPLACE INTO goals (month_tag, target_amount) VALUES (?, ?)", (current_month_tag, new_target))
-                        conn.commit()
-                        conn.close()
-                        st.success(f"🎯 চলতি মাসের প্রফিট টার্গেট সফলভাবে `{new_target:,.0f} BDT` এ সেট করা হয়েছে!")
-                        st.rerun()
 
         # 👥 ৩. এমপ্লয়ি ডিরেক্টরি হাব
         elif st.session_state.current_navigation == "👥 EMপ্লয়ি ডিরেক্টরি হাব" and is_verified:
@@ -346,19 +372,17 @@ else:
                         st.markdown("<span class='card-verified'>🛡️ OFFICER VERIFIED</span>", unsafe_allow_html=True)
                     st.markdown(f"### {row['fullname']}", unsafe_allow_html=True)
                     st.markdown(f"📁 <b>রোল:</b> <span style='color:#00f2fe;'>{row['role']}</span>", unsafe_allow_html=True)
-                    st.markdown(f"📞 <b>WhatsApp:</b> {row['whatsapp'] if row['whatsapp'] else 'N/A'}", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
 
         # 💬 ৪. লাইভ চ্যাট রুম
         elif st.session_state.current_navigation == "💬 লাইভ চ্যাট রুম":
-            st.title("💬 সেশন সিঙ্ক লাইভ চ্যাট হাব (Messenger Mode)")
-            
+            st.title("💬 লাইভ চ্যাট হাব (Messenger Mode)")
             conn = get_db_connection()
             df_chat_logs = pd.read_sql_query("SELECT * FROM chat_messages ORDER BY id ASC", conn)
             conn.close()
             st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
             for _, chat in df_chat_logs.iterrows():
-                st.markdown(f"<div class='global-chat-bubble'><b>{chat['sender_name']} [{chat['sender_role']}]:</b> {chat['msg']} <small style='color:#64748b; float:right;'>{chat['timestamp']}</small></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='global-chat-bubble'><b>{chat['sender_name']} [{chat['sender_role']}]:</b> {chat['msg']}</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
             with st.form("chat_send_form", clear_on_submit=True):
@@ -393,22 +417,19 @@ else:
                     conn.close()
                     st.success("অर्डरটি ডাটাবেসে সেভ হয়েছে!")
 
-        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর (Only for CEO, CTO, Manager)
+        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর
         elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর" and is_verified:
             st.title("🎯 টিম টাস্ক ডিস্ট্রিবিউটর টার্মিনাল")
-            
             if not has_admin_power:
-                st.error("🔒 দুঃখিত, টাস্ক ডিস্ট্রিবিউট করার ক্ষমতা শুধুমাত্র CEO, CTO এবং Manager-দের রয়েছে।")
+                st.error("🔒 দুঃখিত, এই পাওয়ার আপনার রোলের জন্য বরাদ্দ নয়।")
             else:
                 tab1, tab2 = st.tabs(["🎬 এডিটর লাইভ টাস্ক বক্স", "⚡ মডারেটর লাইভ টাস্ক বক্স"])
-                
                 with tab1:
-                    st.subheader("Assign Live Task to Editors")
                     with st.form("editor_task_form", clear_on_submit=True):
-                        e_client = st.text_input("ক্লায়েন্ট রেফারেন্স কোড:", key="ec")
-                        e_editor = st.text_input("টার্গেট এডিটর (Editor Username):", key="ee")
-                        e_detail = st.text_area("কাজের ডিটেইলস (Editor):", key="ed")
-                        e_payment = st.number_input("বজেট/ফি (Editor BDT):", min_value=0.0, key="ep")
+                        e_client = st.text_input("ক্লায়েন্ট রেফারেন্স কোড:")
+                        e_editor = st.text_input("টার্গেট এডিটর (Username):")
+                        e_detail = st.text_area("কাজের ডিটেইলস:")
+                        e_payment = st.number_input("বজেট/ফি (Editor BDT):", min_value=0.0)
                         if st.form_submit_button("এডিটর টাস্ক ইস্যু করুন 🚀"):
                             conn = get_db_connection()
                             cursor = conn.cursor()
@@ -416,108 +437,39 @@ else:
                                            (e_client, e_editor.lower().strip(), e_detail, datetime.now().strftime("%I:%M %p"), e_payment))
                             conn.commit()
                             conn.close()
-                            st.success("এডিটর প্যানেলে লাইভ টাস্ক পাঠানো হয়েছে!")
-                
-                with tab2:
-                    st.subheader("Assign Live Task to Moderators")
-                    with st.form("moderator_task_form", clear_on_submit=True):
-                        m_client = st.text_input("ক্লায়েন্ট রেফারেন্স কোড:", key="mc")
-                        m_mod = st.text_input("টার্গেট মডারেটর (Moderator Username):", key="mm")
-                        m_detail = st.text_area("কাজের ডিটেইলস (Moderator):", key="md")
-                        m_payment = st.number_input("বজেট/ফি (Moderator BDT):", min_value=0.0, key="mp")
-                        if st.form_submit_button("মডারেটর টাস্ক ইস্যু করুন ⚡"):
-                            conn = get_db_connection()
-                            cursor = conn.cursor()
-                            cursor.execute("INSERT INTO tasks (client, editor, task_detail, assign_time, start_time, submit_time, status, final_link, revision_note, editor_payment, target_type) VALUES (?,?,?,?,'','','Pending','','',?,'Moderator')",
-                                           (m_client, m_mod.lower().strip(), m_detail, datetime.now().strftime("%I:%M %p"), m_payment))
-                            conn.commit()
-                            conn.close()
-                            st.success("মডারেটর প্যানেলে লাইভ টাস্ক পাঠানো হয়েছে!")
+                            st.success("টাস্ক সফলভাবে অ্যাসাইন হয়েছে!")
 
         # ⚡ ৭. মডারেটর লাইভ টাস্ক আপডেট
-        elif st.session_state.current_navigation == "⚡ মডারেটর লাইভ টাস্ক আপডেট" and is_verified:
+        elif st.session_state.current_navigation == "⚡ মডারেটর লাইভ টাস্ক আদেশ" and is_verified:
             st.title("⚡ মডারেটর লাইভ টাস্ক আপডেট টার্মিনাল")
             conn = get_db_connection()
             tasks_current = pd.read_sql_query("SELECT * FROM tasks ORDER BY id DESC", conn)
             conn.close()
             for idx, t_row in tasks_current.iterrows():
-                with st.expander(f"📌 [{t_row['target_type']}] টাস্ক আইডি: {t_row['id']} | ইউজার: {t_row['editor']} | স্ট্যাটাস: {t_row['status']}"):
+                with st.expander(f"📌 [{t_row['target_type']}] টাস্ক আইডি: {t_row['id']} | স্ট্যাটাস: {t_row['status']}"):
                     with st.form(f"mod_form_{t_row['id']}"):
-                        current_status = t_row['status'] if t_row['status'] in ["Pending", "Started", "Submitted", "Approved", "Revision"] else "Pending"
-                        m_status = st.selectbox("স্ট্যাটাস আপডেট:", ["Pending", "Started", "Submitted", "Approved", "Revision"], index=["Pending", "Started", "Submitted", "Approved", "Revision"].index(current_status))
-                        m_link = st.text_input("ফাইনাল ডেলিভারি লিংক:", value=t_row['final_link'])
+                        m_status = st.selectbox("স্ট্যাটাস আপডেট:", ["Pending", "Started", "Submitted", "Approved", "Revision"])
+                        m_link = st.text_input("ফাইনাল লিংক:", value=t_row['final_link'])
                         m_rev = st.text_input("রিভিশন নোট:", value=t_row['revision_note'])
-                        if st.form_submit_button("নোড আপডেট সাবমিট ⚙️"):
+                        if st.form_submit_button("আপডেট নোড ⚙️"):
                             conn = get_db_connection()
                             cursor = conn.cursor()
                             cursor.execute("UPDATE tasks SET status=?, final_link=?, revision_note=? WHERE id=?", (m_status, m_link, m_rev, t_row['id']))
                             conn.commit()
                             conn.close()
-                            st.success("টাস্ক লাইভ সিঙ্ক সফল!")
+                            st.success("লাইভ সিঙ্ক সফল!")
                             st.rerun()
 
         # 👮 ৮. অ্যাডমিন ও CTO প্যানেল
         elif st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল" and is_verified:
             st.title("👮 অ্যাডমিন ও ওনার কন্ট্রোল প্যানেল")
-            
-            if has_admin_power:
-                st.markdown("---")
-                with st.expander("📝 🔐 সিকিউর টিম মেম্বার আইডি ক্রিয়েশন টার্মিনাল (অ্যাডমিন এক্সক্লুসিভ)", expanded=False):
-                    with st.form("admin_create_user_form", clear_on_submit=True):
-                        adm_uid = st.text_input("ইউজার আইডি (Username - ছোট হাতের অক্ষরে, স্পেস ছাড়া):")
-                        adm_pass = st.text_input("ডিফল্ট পাসওয়ার্ড (Password):")
-                        adm_fullname = st.text_input("পূর্ণ নাম (Full Name):")
-                        adm_role = st.selectbox("মেম্বারের টিম রোল সিলেক্ট করুন:", ["Chairman", "CEO", "CTO & Lead Developer", "Co-Founder", "Operation Officer", "Manager", "Moderator", "Editor", "Internee"])
-                        adm_whatsapp = st.text_input("হোয়াটসঅ্যাপ নাম্বার:")
-                        
-                        if st.form_submit_button("নতুন মেম্বার ডাটাবেসে যুক্ত করুন ➕"):
-                            clean_adm_uid = adm_uid.lower().strip()
-                            if not clean_adm_uid or not adm_pass or not adm_fullname:
-                                st.error("ইউজার আইডি, পাসওয়ার্ড এবং পূর্ণ নাম আবশ্যক!")
-                            else:
-                                conn = get_db_connection()
-                                cursor = conn.cursor()
-                                cursor.execute("SELECT COUNT(*) FROM users WHERE username=?", (clean_adm_uid,))
-                                if cursor.fetchone()[0] > 0:
-                                    st.error("এই ইউজার আইডিটি ইতিমধ্যে ডাটাবেসে রয়েছে!")
-                                    conn.close()
-                                else:
-                                    cursor.execute("""INSERT INTO users (username, password, fullname, role, whatsapp, bio, skills, is_officer_verified, last_seen) 
-                                                   VALUES (?, ?, ?, ?, ?, '', '', 1, '')""", 
-                                                   (clean_adm_uid, adm_pass, adm_fullname, adm_role, adm_whatsapp))
-                                    conn.commit()
-                                    conn.close()
-                                    st.success(f"🎉 সফলভাবে নতুন আইডি তৈরি হয়েছে! ইউজারনেম: `{clean_adm_uid}`")
-                                    st.rerun()
-                st.markdown("---")
-
             st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
             for idx, u_row in df_users_all.iterrows():
-                col_v1, col_v2 = st.columns([3, 1])
-                with col_v1:
-                    st.write(f"👤 **{u_row['fullname']}** (`{u_row['role']}`) | {'Verified 🛡️' if u_row['is_officer_verified'] == 1 else 'Unverified ❌'}")
-                with col_v2:
-                    if u_row['is_officer_verified'] == 0:
-                        if st.button("ভেরিফাই এনাবল 🛠️", key=f"v_btn_{u_row['username']}"):
-                            conn = get_db_connection()
-                            conn.cursor().execute("UPDATE users SET is_officer_verified=1 WHERE username=?", (u_row['username'],))
-                            conn.commit()
-                            conn.close()
-                            st.success("ইউজার ভেরিফাইড!")
-                            st.rerun()
-                    else:
-                        if u_row['is_officer_verified'] == 1 and u_row['username'] != 'reyadh':
-                            if st.button("ভেরিফিকেশন রিমুভ ⚠️", key=f"uv_btn_{u_row['username']}"):
-                                conn = get_db_connection()
-                                conn.cursor().execute("UPDATE users SET is_officer_verified=0 WHERE username=?", (u_row['username'],))
-                                conn.commit()
-                                conn.close()
-                                st.warning("ভেরিফিকেশন রিমুভড!")
-                                st.rerun()
+                st.write(f"👤 **{u_row['fullname']}** (`{u_row['role']}`)")
 
-        # 🕵️ ৯. সিক্রেট ইনবক্স স্পাইডার (Spy)
+        # 🕵️ ৯. সিক্রেট ইনবক্স স্পাইডার
         elif st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)" and is_verified:
-            st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার (Enterprise Spy Terminal)")
+            st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার")
             conn = get_db_connection()
             df_spy = pd.read_sql_query("SELECT * FROM chat_messages ORDER BY id DESC", conn)
             conn.close()
@@ -525,23 +477,19 @@ else:
 
         # 👤 ১০. আমার প্রোফাইল এডিট করুন
         elif st.session_state.current_navigation == "👤 আমার প্রোফাইল এডিট করুন":
-            st.title("👤 মাই ড্যাсходোর্ড আইডি কার্ড কন্ট্রোল")
+            st.title("👤 প্রোফাইল আইডি কার্ড কন্ট্রোল")
             with st.form("profile_control_form"):
-                f_name = st.text_input("আপনার নাম (Full Name)", value=my_meta["fullname"])
-                w_num = st.text_input("হোয়াটসঅ্যাপ নাম্বার", value=my_meta["whatsapp"])
-                b_info = st.text_area("আপনার প্রোফাইল বায়ো", value=my_meta["bio"])
-                uploaded_pic = st.file_uploader("নতুন প্রোফাইল ছবি আপলোড", type=["jpg", "png"])
-                if st.form_submit_button("ডাটাবেস কোড সিঙ্ক করুন 💾"):
-                    img_bytes = my_meta["profile_pic"]
-                    if uploaded_pic is not None:
-                        img_bytes = uploaded_pic.read()
+                f_name = st.text_input("আপনার নাম", value=my_meta["fullname"])
+                w_num = st.text_input("হোয়াটসঅ্যাপ", value=my_meta["whatsapp"])
+                b_info = st.text_area("বায়ো", value=my_meta["bio"])
+                if st.form_submit_button("সেভ করুন 💾"):
                     conn = get_db_connection()
                     cursor = conn.cursor()
-                    cursor.execute("UPDATE users SET fullname=?, whatsapp=?, bio=?, profile_pic=? WHERE username=?", 
-                                   (f_name, w_num, b_info, img_bytes, current_user))
+                    cursor.execute("UPDATE users SET fullname=?, whatsapp=?, bio=? WHERE username=?", 
+                                   (f_name, w_num, b_info, current_user))
                     conn.commit()
                     conn.close()
-                    st.success("প্রোফাইল সফলভাবে আপডেট হয়েছে!")
+                    st.success("সফলভাবে প্রোফাইল সেভ হয়েছে!")
                     st.rerun()
 
     # ==========================================
