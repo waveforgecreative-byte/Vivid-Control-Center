@@ -66,7 +66,7 @@ DB_FILE = "vivid_studio_max_v6.db"
 DEFAULT_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
 
 # ==========================================
-# ২. ডাটাবেস কানেকশন ও কোর আর্কিটেকচার
+# ২. ডাটাবেস কানেকশন ও কোর আর্কার্টেকচার
 # ==========================================
 def get_db_connection():
     return sqlite3.connect(DB_FILE, timeout=30, check_same_thread=False)
@@ -246,7 +246,7 @@ else:
             menu_options = [
                 "📊 লাইভ ড্যাশবোর্ড",
                 "📉 লাইভ প্রফিট ও রিপোর্ট হাব",
-                "👥 এমপ্লয়ি ডিরেক্টরি হাব",
+                "👥 EMপ্লয়ি ডিরেক্টরি হাব",
                 "💬 লাইভ চ্যাট রুম",
                 "✍️ নতুন অর্ডার এন্ট্রি",
                 "🎯 টাস্ক ডিস্ট্রিবিউটর",
@@ -256,7 +256,6 @@ else:
                 "👤 আমার প্রোফাইল এডিট করুন"
             ]
         else:
-            # আনভেরিফাইড মেম্বাররা শুধু ইনপুট, চ্যাট আর প্রোফাইল আপডেট করতে পারবে (সব রিপোর্ট লক)
             menu_options = [
                 "💬 লাইভ চ্যাট রুম",
                 "✍️ নতুন অর্ডার এন্ট্রি",
@@ -283,7 +282,7 @@ else:
                             st.success("নোটিশ সফলভাবে লাইভ পরিবর্তন করা হয়েছে!")
                             st.rerun()
 
-        # 📊 ১. লাইভ ড্যাশবোর্ড (শুধুমাত্র ভেরিফাইডরা দেখতে পাবে)
+        # 📊 ১. লাইভ ড্যাশবোর্ড
         if st.session_state.current_navigation == "📊 লাইভ ড্যাশবোর্ড" and is_verified:
             st.title("📊 Vivid Core আইটি অটোমেশন ড্যাশবোর্ড")
             st.subheader("👥 একটিভ টিম রিসোর্স কাউন্টার")
@@ -301,22 +300,41 @@ else:
             else:
                 st.dataframe(current_month_orders, use_container_width=True)
 
-        # 📉 ২. লাইভ প্রফিট ও রিপোর্ট হাব (শুধুমাত্র ভেরিফাইডরা দেখতে পাবে)
+        # 📉 ২. লাইভ প্রফিট ও রিপোর্ট হাব (ম্যানুয়াল টার্গেট সিস্টেম সংযোজিত)
         elif st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব" and is_verified:
             st.title("📉 ফিনান্সিয়াল লেজার ও মান্থলি গোল")
+            
             df_orders["net_profit"] = df_orders["total_price"] - (df_orders["editor_cost"] + df_orders["operation_cost"])
             total_net_profit = df_orders[df_orders["month_tag"] == current_month_tag]['net_profit'].sum()
+            
+            # ডাটাবেস থেকে গোল ট্র্যাকিং লোড
             month_goal_row = df_goals[df_goals["month_tag"] == current_month_tag]
             target_amount = month_goal_row["target_amount"].values[0] if not month_goal_row.empty else 150000.0
             
             if total_net_profit >= target_amount:
-                st.markdown(f"<div class='goal-success'><h3>🎉 মিশন সাকসেসফুল! টার্গেট এچیভড!</h3><p>নেট প্রফিট অর্জিত হয়েছে <b>{total_net_profit:,.0f} BDT</b>!</p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='goal-success'><h3>🎉 মিশন সাকসেসফুল! টার্গেট এچیভড!</h3><p>চলতি মাসের নেট প্রফিট অর্জিত হয়েছে <b>{total_net_profit:,.0f} BDT</b> (টার্গেট ছিল: {target_amount:,.0f} BDT)!</p></div>", unsafe_allow_html=True)
             else:
                 shortage = target_amount - total_net_profit
-                st.markdown(f"<div class='goal-failed'><h3>⚠️ অ্যালার্ট: টার্গেট ফেইলুর রিস্ক!</h3><p>শর্টেজ: <b>{shortage:,.0f} BDT</b></p></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='goal-failed'><h3>⚠️ অ্যালার্ট: টার্গেট ফেইলুর রিস্ক!</h3><p>চলতি মাসের নেট প্রফিট: <b>{total_net_profit:,.0f} BDT</b> | শর্টেজ/বাকি: <b>{shortage:,.0f} BDT</b> (টার্গেট: {target_amount:,.0f} BDT)</p></div>", unsafe_allow_html=True)
+                
             st.dataframe(df_orders, use_container_width=True)
+            
+            # --- 🛠️ নতুন ম্যানুয়াল মান্থলি গোল কন্ট্রোল প্যানেল ---
+            st.markdown("---")
+            with st.expander("⚙️ 📈 মান্থলি গোল/টার্গেট সেটার গেটওয়ে (ম্যানুয়াল কনফিগারেশন)", expanded=False):
+                with st.form("manual_goal_form"):
+                    new_target = st.number_input("চলতি মাসের নতুন প্রফিট টার্গেট সেট করুন (BDT):", min_value=0.0, value=float(target_amount), step=5000.0)
+                    if st.form_submit_button("নতুন টার্গেট কোড সিঙ্ক করুন 💾"):
+                        conn = get_db_connection()
+                        cursor = conn.cursor()
+                        # INSERT OR REPLACE লজিকে ডাটাবেসে আপডেট হবে
+                        cursor.execute("INSERT OR REPLACE INTO goals (month_tag, target_amount) VALUES (?, ?)", (current_month_tag, new_target))
+                        conn.commit()
+                        conn.close()
+                        st.success(f"🎯 চলতি মাসের প্রফিট টার্গেট সফলভাবে `{new_target:,.0f} BDT` এ সেট করা হয়েছে!")
+                        st.rerun()
 
-        # 👥 ৩. এমপ্লয়ি ডিরেক্টরি হাব (ভেরিফাইড)
+        # 👥 ৩. এমপ্লয়ি ডিরেক্টরি হাব
         elif st.session_state.current_navigation == "👥 এমপ্লয়ি ডিরেক্টরি হাব" and is_verified:
             st.title("👥 আইটি ট্যালেন্ট ও রিসোর্স ডিরেক্টরি")
             dir_cols = st.columns(3)
@@ -334,7 +352,7 @@ else:
                     st.markdown(f"📞 <b>WhatsApp:</b> {row['whatsapp'] if row['whatsapp'] else 'N/A'}", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
 
-        # 💬 ৪. লাইভ চ্যাট রুম (ভেরিফাইড ও আনভেরিফাইড উভয়ের জন্য উন্মুক্ত)
+        # 💬 ৪. লাইভ চ্যাট রুম
         elif st.session_state.current_navigation == "💬 লাইভ চ্যাট রুম":
             st.title("💬 সেশন সিঙ্ক লাইভ চ্যাট হাব (Messenger Mode)")
             
@@ -358,7 +376,7 @@ else:
                         conn.close()
                         st.rerun()
 
-        # ✍️ ৫. নতুন অর্ডার এন্ট্রি (ভেরিফাইড ও আনভেরিফাইড উভয়ের জন্য উন্মুক্ত)
+        # ✍️ ৫. নতুন অর্ডার এন্ট্রি
         elif st.session_state.current_navigation == "✍️ নতুন অর্ডার এন্ট্রি":
             st.title("✍️ নতুন ক্লায়েন্ট অর্ডার এন্ট্রি")
             with st.form("order_entry_form"):
@@ -369,16 +387,16 @@ else:
                 ed_name = st.text_input("অ্যাসাইনকৃত এডিটর নাম:")
                 ed_cost = st.number_input("এডিটর খরচ (BDT):", min_value=0.0)
                 op_cost = st.number_input("অপারেশনাল কস্ট (BDT):", min_value=0.0)
-                if st.form_submit_button("অর্ডার সেভ করুন 💾"):
+                if st.form_submit_button("অर्डर সেভ করুন 💾"):
                     conn = get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("INSERT INTO orders (date, client_name, client_number, service_name, total_price, advance_paid, due_amount, editor_name, editor_cost, operation_cost, month_tag) VALUES (?,?,?,?,?,0,?, ?,?,?,?)",
                                    (datetime.now().strftime("%Y-%m-%d"), c_name, c_num, s_name, t_price, t_price, ed_name, ed_cost, op_cost, current_month_tag))
                     conn.commit()
                     conn.close()
-                    st.success("অর্ডারটি ডাটাবেসে সেভ হয়েছে!")
+                    st.success("অर्डरটি ডাটাবেসে সেভ হয়েছে!")
 
-        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর (এডিটর ও মডারেটরদের জন্য আলাদা বক্স - Only for CEO, CTO, Manager)
+        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর (Only for CEO, CTO, Manager)
         elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর" and is_verified:
             st.title("🎯 টিম টাস্ক ডিস্ট্রিবিউটর টার্মিনাল")
             
@@ -389,7 +407,7 @@ else:
                 
                 with tab1:
                     st.subheader("Assign Live Task to Editors")
-                    with St.form("editor_task_form", clear_on_submit=True):
+                    with st.form("editor_task_form", clear_on_submit=True):
                         e_client = st.text_input("ক্লায়েন্ট রেফারেন্স কোড:", key="ec")
                         e_editor = st.text_input("টার্গেট এডিটর (Editor Username):", key="ee")
                         e_detail = st.text_area("কাজের ডিটেইলস (Editor):", key="ed")
@@ -419,7 +437,7 @@ else:
                             conn.close()
                             st.success("মডারেটর প্যানেলে লাইভ টাস্ক পাঠানো হয়েছে!")
 
-        # ⚡ ৭. মডারেটর লাইভ টাস্ক আপডেট (ভেরিফাইড)
+        # ⚡ ৭. মডারেটর লাইভ টাস্ক আপডেট
         elif st.session_state.current_navigation == "⚡ মডারেটর লাইভ টাস্ক আপডেট" and is_verified:
             st.title("⚡ মডারেটর লাইভ টাস্ক আপডেট টার্মিনাল")
             conn = get_db_connection()
@@ -441,7 +459,7 @@ else:
                             st.success("টাস্ক লাইভ সিঙ্ক সফল!")
                             st.rerun()
 
-        # 👮 ৮. অ্যাডমিন ও CTO প্যানেল (আইডি ক্রিয়েশন গেটওয়ে - Only CEO, CTO, Manager)
+        # 👮 ৮. অ্যাডমিন ও CTO প্যানেল
         elif st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল" and is_verified:
             st.title("👮 অ্যাডমিন ও ওনার কন্ট্রোল প্যানেল")
             
@@ -500,7 +518,7 @@ else:
                                 st.warning("ভেরিফিকেশন রিমুভড!")
                                 st.rerun()
 
-        # 🕵️ ৯. সিক্রেট ইনবক্স স্পাইডার (Spy) (ভেরিফাইড)
+        # 🕵️ ৯. সিক্রেট ইনবক্স স্পাইডার (Spy)
         elif st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)" and is_verified:
             st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার (Enterprise Spy Terminal)")
             conn = get_db_connection()
@@ -508,7 +526,7 @@ else:
             conn.close()
             st.dataframe(df_spy, use_container_width=True)
 
-        # 👤 ১০. আমার প্রোফাইল এডিট করুন (উন্মুক্ত)
+        # 👤 ১০. আমার প্রোফাইল এডিট করুন
         elif st.session_state.current_navigation == "👤 আমার প্রোফাইল এডিট করুন":
             st.title("👤 মাই ড্যাсходোর্ড আইডি কার্ড কন্ট্রোল")
             with st.form("profile_control_form"):
@@ -534,4 +552,3 @@ else:
     # ==========================================
     st.markdown("---")
     st.caption(f"🟢 Server Node Status: Secure & Active | Core Database Synced Successfully")
-    
