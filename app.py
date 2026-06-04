@@ -8,11 +8,11 @@ import time
 import io
 
 # ==========================================
-# ১. গ্লোবাল মেটা, ব্রান্ডিং ও আইটি এজেন্সি আল্ট্রা থিম
+# ১. গলোবাল মেটা, ব্রান্ডিং ও আইটি এজেন্সি আল্ট্রা থিম
 # ==========================================
-st.set_page_config(page_title="Vivid Core Core ULTRA Command Center", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Vivid Core ULTRA Command Center", page_icon="⚡", layout="wide")
 
-# আইটি এজেন্সি এবং টেক হাউজের জন্য নিয়ন ও গ্লাস-মরফিজম থিমিং
+# আইটি এজেন্সি এবং টেক হাউজের জন্য নিয়ন, গ্লাস-মরফিজম ও হাই-ডেফিনিশন ইমেজ থিমিং
 st.markdown("""
 <style>
     body { background-color: #0a0f1d; color: #e2e8f0; }
@@ -21,6 +21,16 @@ st.markdown("""
     /* গ্লাস-মরফিজম কার্ড ইফেক্ট */
     .profile-card { background: rgba(30, 41, 59, 0.7); padding: 20px; border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.2); text-align: center; margin-bottom: 20px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px); transition: 0.3s; }
     .profile-card:hover { border-color: #00f2fe; box-shadow: 0 0 15px rgba(0, 242, 254, 0.4); }
+    
+    /* প্রোফাইল পিকচার হাই-ডেফিনিশন ও ক্রিস্পি ক্লিয়ার করার সিএসএস প্যাচ */
+    .profile-card img, .stSidebar img {
+        border-radius: 12px;
+        object-fit: cover !important;
+        border: 2px solid #00f2fe;
+        box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+        image-rendering: -webkit-optimize-contrast; /* ক্রোম/সাফারির জন্য ছবি শার্প করার ট্রিক */
+        image-rendering: auto;
+    }
     
     /* চ্যাট বাবল থিম */
     .chat-bubble-user { background: linear-gradient(135deg, #00b4db, #0083b0); color: #ffffff; padding: 12px; border-radius: 16px 16px 4px 16px; margin: 8px 0; text-align: right; max-width: 75%; margin-left: auto; box-shadow: 0 4px 12px rgba(0,180,219,0.3); }
@@ -36,12 +46,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 DB_FILE = "vivid_studio_max_v6.db"
-
-# টেকনোলজিক্যাল ডিফল্ট অবতার ইমেজ (যদি প্রোফাইল পিকচার আপলোড না থাকে)
-DEFAULT_AVATAR_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=60"
+DEFAULT_AVATAR_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80"
 
 # ==========================================
-# ২. ডেটাবেস আর্কিটেকচার
+# ২. ডেটাবেস আর্কিটেকচার ও মাস্টার ইউজার কনফিগারেশন
 # ==========================================
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -61,15 +69,16 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT, role_tag TEXT, title TEXT, content TEXT, timestamp TEXT)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS goals (month_tag TEXT PRIMARY KEY, target_amount REAL)''')
     
-    cursor.execute("SELECT COUNT(*) FROM users")
+    # পুরোনো ডামি এডমিন অ্যাকাউন্ট থাকলে তা ক্লিনআপ বা রিমুভ করা
+    cursor.execute("DELETE FROM users WHERE username='admin'")
+    
+    # আপনার নতুন মাস্টার প্রোফাইল সেটিংস (CTO & 49% Production Shareholder)
+    cursor.execute("SELECT COUNT(*) FROM users WHERE username='reyadh'")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""INSERT INTO users VALUES (
             'reyadh', 'cto123', 'Reyadh (CTO)', 'CTO', '01700000000', 
-            'Chief Technology Officer | System Architect & Tech Lead. Driving automation, server security, and ultimate pipeline synchronization for Vivid Core.', 
-            'Python Full-Stack, System Architecture, Database Optimization, Server Security, AI Automation & Workflow Engineering.', 1, NULL)""")
-        cursor.execute("""INSERT INTO users VALUES (
-            'admin', '123', 'Agency Chairman', 'Chairman', '01900000000', 
-            'Founder & Chairman of Vivid Core.', 'Management', 1, NULL)""")
+            'Chief Technology Officer & Co-Owner (49% Production Shareholder). Leading system architecture, software production pipelines, and technical innovation for Vivid Core.', 
+            'Full-Stack Development, System Architecture, Production Pipeline Optimization, DevOps & Cloud Computing, Tech Stack Strategy.', 1, NULL)""")
         
     current_month = datetime.now().strftime("%Y-%m")
     cursor.execute("INSERT OR IGNORE INTO goals VALUES (?, 150000)", (current_month,))
@@ -151,7 +160,8 @@ else:
     current_user = st.session_state.user
     my_meta = USER_DB[current_user]
     user_role = my_meta["role"]
-    is_verified_officer = my_meta["is_verified"] or (user_role in ["Chairman", "CTO", "Admin"])
+    # 'reyadh' আইডি এখন থেকে সিস্টেমের মাস্টার রুট/সুপার এডমিন হিসেবে কাজ করবে
+    is_verified_officer = my_meta["is_verified"] or (user_role in ["CTO", "Chairman", "Admin"])
     
     update_activity(current_user)
     
@@ -160,6 +170,7 @@ else:
     # ==========================================
     st.sidebar.markdown("<h1 style='color:#00f2fe; text-align:center; font-family:monospace; font-weight:bold; letter-spacing:2px;'>VIVID CORE</h1>", unsafe_allow_html=True)
     
+    # সাইডবারে ইমেজ ক্রিস্পি রেন্ডারিং প্যাচ
     if my_meta["pic"]:
         st.sidebar.image(io.BytesIO(my_meta["pic"]), width=120)
     else:
@@ -172,6 +183,7 @@ else:
         st.sidebar.markdown("<span class='badge-verified'>🔒 SECURE OFFICER ENABLED</span>", unsafe_allow_html=True)
     
     st.sidebar.markdown("---")
+    st.sidebar.markdown("---")
     st.sidebar.markdown("🛰️ **অনলাইন নেটওয়ার্ক নোডস**")
     
     for user, last_seen in list(st.session_state.active_users.items()):
@@ -179,9 +191,9 @@ else:
             meta = USER_DB.get(user, {"fullname": user, "role": "User", "pic": None})
             col_s1, col_s2 = st.sidebar.columns([1, 4])
             if meta["pic"]:
-                col_s1.image(io.BytesIO(meta["pic"]), width=25)
+                col_s1.image(io.BytesIO(meta["pic"]), width=30)
             else:
-                col_s1.image(DEFAULT_AVATAR_URL, width=25)
+                col_s1.image(DEFAULT_AVATAR_URL, width=30)
             col_s2.markdown(f"<span class='active-dot'></span> {meta['fullname']} <small style='color:#38bdf8;'>`{meta['role']}`</small>", unsafe_allow_html=True)
 
     if st.sidebar.button("সার্ভার ডিসকানেক্ট 🚪", use_container_width=True):
@@ -193,12 +205,12 @@ else:
     
     if user_role == "Editor":
         menu_options.insert(3, "🎬 আমার এডিটিং প্যানেল")
-    if user_role in ["Chairman", "CTO", "Admin", "Manager"]:
+    if user_role in ["CTO", "Chairman", "Admin", "Manager"]:
         menu_options.append("✍️ নতুন অর্ডার এন্ট্রি")
         menu_options.append("🎯 টাস্ক ডিস্ট্রিবিউটর")
     if is_verified_officer:
         menu_options.append("📉 লাইভ প্রফিট ও রিপোর্ট হাব")
-    if user_role in ["Chairman", "CTO", "Admin"]:
+    if user_role in ["CTO", "Chairman", "Admin"]:
         menu_options.append("👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল")
         menu_options.append("🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)")
 
@@ -228,7 +240,7 @@ else:
     # ৫. মেইন লাইভ ড্যাশবোর্ড
     # ==========================================
     if st.session_state.current_navigation == "📊 লাইভ ড্যাশবোর্ড":
-        st.title("📊 Vivid Core আইট অটোমেশন ড্যাশবোর্ড")
+        st.title("📊 Vivid Core আইটি অটোমেশন ড্যাশবোর্ড")
         
         st.subheader("👥 একটিভ টিম রিসোর্স কাউন্টার")
         conn = get_db_connection()
@@ -245,7 +257,6 @@ else:
             
         st.markdown("---")
         
-        # কাস্টম গোল রিড
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT target_amount FROM goals WHERE month_tag = ?", (current_month_tag,))
@@ -282,15 +293,17 @@ else:
             col_target = dir_cols[idx % 3]
             with col_target:
                 st.markdown("<div class='profile-card'>", unsafe_allow_html=True)
+                
+                # ডিরেক্টরি কার্ডের ইমেজ রেন্ডারিং হাই-কোয়ালিটি করা হলো 
                 if row["profile_pic"]:
-                    st.image(io.BytesIO(row["profile_pic"]), width=130)
+                    st.image(io.BytesIO(row["profile_pic"]), width=140)
                 else:
-                    st.image(DEFAULT_AVATAR_URL, width=130)
+                    st.image(DEFAULT_AVATAR_URL, width=140)
                 
                 st.markdown(f"<h3>{row['fullname']}</h3>", unsafe_allow_html=True)
                 st.markdown(f"💻 রোল: <span style='color:#00f2fe;'><b>{row['role']}</b></span>", unsafe_allow_html=True)
                 
-                if row['is_officer_verified'] or row['role'] in ['Chairman', 'CTO', 'Admin']:
+                if row['is_officer_verified'] or row['role'] in ['CTO', 'Chairman', 'Admin']:
                     st.markdown("<br><span class='badge-officer'>🔒 CORE OFFICER</span><br>", unsafe_allow_html=True)
                 
                 st.write(f"📞 যোগাযোগ: [{row['whatsapp']}](https://wa.me/{row['whatsapp']})")
@@ -340,7 +353,7 @@ else:
             st.markdown("</div>", unsafe_allow_html=True)
             
             with st.form("priv_form", clear_on_submit=True):
-                msg_p_txt = st.text_input("সিকিউরড মেসেজ ইনপুট...")
+                msg_p_txt = st.text_input("सिक्योरड মেসেজ ইনপুট...")
                 if st.form_submit_button("ডাটা প্যাকেট পুশ 🔐"):
                     if msg_p_txt:
                         st.session_state.global_chats.append({
@@ -364,11 +377,13 @@ else:
                 u_bio = st.text_area("আপনার প্রোফাইল বায়ো/পরিচিতি (Bio)", value=my_meta["bio"])
             with col_u2:
                 u_skills = st.text_input("টেকনিক্যাল এক্সপেরিয়েন্স ও স্কিলসেট", value=my_meta["skills"])
+                
+                # রিভিউ এডিটিংয়ে ইমেজ শার্পনেস প্রিভিউ
                 if my_meta["pic"]:
-                    st.image(io.BytesIO(my_meta["pic"]), width=110, caption="বর্তমান প্রোফাইল ছবি")
+                    st.image(io.BytesIO(my_meta["pic"]), width=120, caption="বর্তমান প্রোফাইল ছবি")
                 else:
-                    st.image(DEFAULT_AVATAR_URL, width=110, caption="ডিফল্ট ইমেজ")
-                u_pic = st.file_uploader("নতুন ছবি আপলোড (.jpg/.png)", type=["jpg", "png"])
+                    st.image(DEFAULT_AVATAR_URL, width=120, caption="ডিফল্ট ইমেজ")
+                u_pic = st.file_uploader("새로운 প্রোফাইল ছবি আপলোড (.jpg/.png)", type=["jpg", "png"])
             
             if st.form_submit_button("ডাটাবেস কোড সিঙ্ক করুন 💾"):
                 conn = get_db_connection()
@@ -421,7 +436,7 @@ else:
     # ==========================================
     # 🎯 টাস্ক ডিস্ট্রিবিউটর
     # ==========================================
-    elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর":
+    elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটor":
         st.title("🎯 টাস্ক ও ওয়ার্কফ্লো ডিস্ট্রিবিউটর")
         editor_list = [u for u in USER_DB if USER_DB[u]["role"] == "Editor"]
         
@@ -432,7 +447,7 @@ else:
                 t_ed = st.selectbox("কোন এসাইনড এডিটরকে সাবমিট করবেন?", editor_list if editor_list else ["No Editor"])
                 t_dt = st.text_area("প্রজেক্টের রিকোয়ারমেন্ট ডক ও ব্রিফ")
             with cx2:
-                t_pay = st.number_input("কন্ট্রাকচুয়াল কস্ট বাজেট (BDT)", min_value=0)
+                t_pay = st.number_input("কন্ডিশনাল কস্ট বাজেট (BDT)", min_value=0)
                 
             if st.form_submit_button("🛰️ ওয়ার্কফ্লো লাইভ পুশ দিন"):
                 if t_cl and t_ed != "No Editor":
@@ -509,7 +524,7 @@ else:
     # ১২. অ্যাডমিন ও CTO কন্ট্রোল প্যানেল
     # ==========================================
     elif st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল":
-        st.title("👮 মাস্টার সুপারভাইজার গেটওয়ে ও এক্সেস কন্ট্রোল")
+        st.title("👮 মাস্টার সুপারভাইজার গেটওয়ে ও এক্সেস কন্ট্রোল (CTO ROOT ACCESS)")
         
         st.subheader("🎯 মান্থলি কাস্টম সেলস টার্গেট (Goal Setting)")
         conn = get_db_connection()
@@ -655,4 +670,4 @@ else:
     col_ft2.caption(f"💾 DB Node Connection: **SQLite Verified ({DB_FILE})**")
     col_ft3.caption(f"🛰️ Sync Time: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**")
     
-    st.markdown("<p style='text-align: center; color: #64748b; font-family: monospace; font-size:12px; margin-top:20px;'>⚡ Enterprise Architecture Engineered & Supervised by CTO <b style='color:#00f2fe;'>REYADH</b> | Version Ultra 6.8 (2026) ⚡</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #64748b; font-family: monospace; font-size:12px; margin-top:20px;'>⚡ Enterprise Architecture Engineered & Supervised by CTO <b style='color:#00f2fe;'>REYADH</b> | Version Ultra 6.9 (2026) ⚡</p>", unsafe_allow_html=True)
