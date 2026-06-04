@@ -20,16 +20,15 @@ MOTIVATION_SUCCESS = [
 MOTIVATION_FAILURE = [
     "💡 টার্গেট মিস হয়েছে? নো টেনশন! ক্লায়েন্টদের ফলো-আপ ইমেইল পাঠান। পুরাতন ২০% কাস্টমার থেকেই ৮০% নতুন বিজনেস আসে!",
     "🎬 সিনেমাটিক শট যেমন ওয়ান-টেক-এ হয় না, বিজনেসও তেমন মাঝেমাঝে ড্রপ করে। ফেসবুক ও ইনস্টাগ্রামে নতুন রিলস/শর্টস ছাড়ুন, রিচ বাড়বে!",
-    "🔥 'সাফল্য চূড়ান্ত নয়, ব্যর্থতাও শেষ নয়'—চলুন এই মাসে স্টুডিও সেকশনের মার্কেটিংয়ে একটু বেশি জোর দিই।",
+    "🔥 'সাফল্য চূড়ান্ত নয়, ব্যর্থতাও শেষ নয়'—চলুন এই মাসে স্টুডিও সেকশনের মার্কেটিংয়ে একটু বেশি জোর দিই।",
     "📈 সেলস বাড়াতে অন্য কোনো ওয়েডিং এজেন্সি বা কর্পোরেট ব্র্যান্ডের সাথে কোলাবোরেশনে যান। নেটওয়ার্কিং-ই নেট-ওয়ার্থ!",
-    "🔍 এই মাসের ডাটা অ্যানালাইসিস করুন: কোন সার্ভিসটা সবচেয়ে কম সেল হয়েছে? সেটার প্রাইসিং বা অফার রি-ডিজائن করুন।"
+    "🔍 এই মাসের ডাটা অ্যানালাইসিস করুন: কোন সার্ভিসটা সবচেয়ে কম সেল হয়েছে? সেটার প্রাইসিং বা অফার রি-ডিজাইন করুন।"
 ]
 
-# --- ২. নতুন নিয়মে গুগল শিট লাইভ কানেকশন (No Credentials Needed) ---
+# --- ২. নতুন নিয়মে গুগল শিট লাইভ কানেকশন ---
 @st.cache_resource(ttl=5) # প্রতি ৫ সেকেন্ড পর পর ডাটা অটো রিফ্রেশ হবে
 def connect_sheet():
     try:
-        # এটি স্ট্রিমলিটের নতুন ডিরেক্ট গুগল শিট কানেক্টর
         return st.connection("gsheets", type=GSheetsConnection)
     except Exception:
         return None
@@ -60,7 +59,8 @@ if "logged_in" not in st.session_state:
     st.session_state.user = ""
 
 # --- ৪. সাইডবার ডিজাইন ---
-st.sidebar.markdown("<h2 style='text-align: center; color: #FF4B4B;'>🎬 VIVID VISTAS</h2>", unsafe_import=False)
+# আপনার স্ক্রিনশটের ভুলটি এখানে ফিক্স করে দেওয়া হয়েছে (unsafe_allow_html=True)
+st.sidebar.markdown("<h2 style='text-align: center; color: #FF4B4B;'>🎬 VIVID VISTAS</h2>", unsafe_allow_html=True)
 st.sidebar.image("https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=400", caption="Vivid Control Center", use_container_width=True)
 
 if not st.session_state.logged_in:
@@ -83,7 +83,7 @@ else:
         st.session_state.logged_in = False
         st.rerun()
 
-    # রোল অনুযায়ী মেনু ফিল্টার (মডারেটর শুধু ইনপুট দিতে পারবে)
+    # রোল অনুযায়ী মেনু ফিল্টার
     if st.session_state.role in ["Admin", "Manager"]:
         menu = st.sidebar.radio("মেনু নেভিগেশন", ["📊 মেইন ড্যাশবোর্ড", "✍️ নতুন অর্ডার এন্ট্রি"])
     else:
@@ -120,7 +120,7 @@ else:
             
             if submit_btn:
                 if not client_name or not client_phone:
-                    st.error("ক্লায়েন্টের নাম এবং মোবাইল নাম্বার দেওয়া বাধ্যতামুলক!")
+                    st.error("ক্লায়েন্টের নাম এবং মোবাইল নাম্বার দেওয়া বাধ্যতামূলক!")
                 elif conn is None:
                     st.error("গুগল শিট কানেকশন পাওয়া যায়নি!")
                 else:
@@ -142,7 +142,7 @@ else:
                         updated_df = pd.concat([df_main, new_row], ignore_index=True)
                         conn.update(worksheet="vivid_vistas_db", data=updated_df)
                         st.success(f"🎉 চমৎকার! {client_name}-এর ডাটা সরাসরি ওয়েবসাইটে আপডেট করা হয়েছে।")
-                        st.cache_resource.clear() # ক্যাশ ক্লিয়ার করা হলো যেন ড্যাশবোর্ডে সাথে সাথে দেখায়
+                        st.cache_resource.clear() 
                     except Exception as e:
                         st.error("ডাটা সেভ করতে সমস্যা হচ্ছে। গুগল শিটের পারমিশন চেক করুন।")
 
@@ -150,7 +150,7 @@ else:
     # ৬. মেইন ড্যাশবোর্ড ও লাভ-ক্ষতি পেজ
     # ==========================================
     elif menu == "📊 মেইন ড্যাশবোর্ড":
-        st.title("📊 Vivid Control Center — রিয়েল-টাইม অ্যানালিটিক্স")
+        st.title("📊 Vivid Control Center — রিয়েল-টাইম অ্যানালিটিক্স")
         
         if df_main.empty:
             st.warning("গুগল শিটে কোনো ডাটা পাওয়া যায়নি বা কানেকশন পেন্ডিং।")
@@ -163,7 +163,7 @@ else:
             df_main["Op_Cost"] = pd.to_numeric(df_main["Operation Cost"], errors='coerce').fillna(0)
             df_main["Net_Profit"] = df_main["Total"] - (df_main["Editor_Cost"] + df_main["Op_Cost"])
             
-            # সাইডবার ফিল্টার (মাসিক ও বার্ষিক অটো রিপোর্ট)
+            # সাইডবার ফিল্টার
             st.sidebar.markdown("---")
             st.sidebar.subheader("📅 অটো রিপোর্ট ফিল্টার")
             available_months = sorted(df_main["Month"].astype(str).unique(), reverse=True)
@@ -211,7 +211,7 @@ else:
             with col_p2:
                 st.subheader(f"📊 {progress_pct*100:.1f}% সম্পন্ন")
                 
-            # মোটিভেশনাল বক্সেস
+            # মোтивнойেশনাল বক্স
             st.markdown("### 💬 Vivid Vistas বিজনেস বুস্টার জোন")
             if current_month_sales >= sales_target:
                 msg = random.choice(MOTIVATION_SUCCESS)
@@ -238,6 +238,6 @@ else:
                 fig_pie = px.pie(srv_df, values="Total", names="Service Name", hole=0.4)
                 st.plotly_chart(fig_pie, use_container_width=True)
 
-            # অল-টাইম বা ফিল্টার্ড ডাটা টেবিল (A-Z)
+            # অল-টাইম ডাটা টেবিল (A-Z)
             st.subheader("📋 সম্পূর্ণ ডাটা রিপোর্ট শীট (A-Z)")
             st.dataframe(df_filtered.drop(columns=["Month", "Year"], errors='ignore'), use_container_width=True)
