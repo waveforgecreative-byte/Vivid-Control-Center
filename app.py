@@ -305,7 +305,7 @@ else:
         st.session_state.current_navigation = selected_menu
 
         if has_notice_power:
-            with st.sidebar.expander("⚙️ লাইভ নোটিশ চেঞ্জার প্যানেল", expanded=True):
+            with st.sidebar.expander("⚙️ লাইভ নোটিশ চেঞ্জার প্যানেল", expanded=False):
                 with st.form("notice_change_form"):
                     new_notice_text = st.text_area("নতুন গ্লোবাল নোটিশ লিখুন:", value=live_notice['notice_text'])
                     if st.form_submit_button("লাইভ ব্রডকাস্ট করুন 📡"):
@@ -415,12 +415,12 @@ else:
                     conn.close()
                     st.success("অर्डरটি ডাটাবেসে সেভ হয়েছে!")
 
-        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর (স্ক্রিনশটের বাগটি এখানে ফিক্স করা হয়েছে)
+        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর
         elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর" and is_verified:
             st.title("🎯 টিম টাস্ক ডিস্ট্রিবিউটর টার্মিনাল")
             
             if not has_admin_power:
-                st.error("🔒 দুঃখিত, এই পাওয়ার আপনার রোলের জন্য বরাদ্দ নয়।")
+                st.error("🔒 দুঃখিত, এই পাওয়ার আপনার রোালের জন্য বরাদ্দ নয়।")
             else:
                 tab1, tab2 = st.tabs(["🎬 এডিটর লাইভ টাস্ক বক্স", "⚡ মডারেটর লাইভ টাস্ক বক্স"])
                 
@@ -460,7 +460,7 @@ else:
                             else:
                                 st.error("ক্লায়েন্ট কোড এবং মডারেটর ইউজারনেম আবশ্যিক!")
 
-        # ⚡ ৭. মডারেটর লাইভ টাস্ক আদেশ/আপডেট
+        # ⚡ ৭. মডারেটর লাইভ টাস্ক আদেশ
         elif st.session_state.current_navigation == "⚡ মডারেটর লাইভ টাস্ক আদেশ" and is_verified:
             st.title("⚡ মডারেটর লাইভ টাস্ক আপডেট টার্মিনাল")
             conn = get_db_connection()
@@ -485,14 +485,15 @@ else:
                                 st.success("লাইভ সিঙ্ক সফল!")
                                 st.rerun()
 
-        # 👮 ৮. অ্যাডমিন ও CTO প্যানেল
-        elif st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO朤কন্ট্রোল প্যানেল" and is_verified:
+        # 👮 ৮. অ্যাডমিন ও CTO কন্ট্রোল প্যানেল (ফিক্সড লজিক)
+        elif st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল" and is_verified:
             st.title("👮 অ্যাডমিন ও ওনার কন্ট্রোল প্যানেল")
             st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
-            for idx, u_row in df_users_all.iterrows():
-                st.write(f"👤 **{u_row['fullname']}** (`{u_row['role']}`)")
+            
+            # মেম্বারদের লিস্ট টেবিল আকারে সুন্দর করে দেখানো
+            st.dataframe(df_users_all[["username", "fullname", "role", "whatsapp", "is_officer_verified"]], use_container_width=True)
 
-        # 🕵️ ৯. সিক্রেট ইনবক্স স্পাইডার
+        # 🕵️ ৯. সিক্রেট ইনবক্স丰富স্পাইডার
         elif st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)" and is_verified:
             st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার")
             conn = get_db_connection()
