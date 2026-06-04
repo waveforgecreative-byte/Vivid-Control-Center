@@ -89,13 +89,20 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, sender_name TEXT, sender_role TEXT, msg TEXT, timestamp TEXT)''')
     
-    # মাস্টার অ্যাডমিন/CTO অ্যাকাউন্ট ডেপ্লয়মেন্ট
+    # মাস্টার অ্যাডমিন/সিস্টেম ওনার অ্যাকাউন্ট ডেপ্লয়মেন্ট (ক্রেডিট ফিক্সড)
     cursor.execute("SELECT COUNT(*) FROM users WHERE username='reyadh'")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""INSERT INTO users (username, password, fullname, role, whatsapp, bio, skills, is_officer_verified, last_seen) VALUES (
-            'reyadh', 'cto123', 'Reyadh (CTO)', 'CTO', '01825221830', 
-            'CTO & Production Shareholder (49%) | System Architect, Tech Lead, and Business Partner.', 
-            'System Architecture, Advanced Automation, Full-Stack Dev, Software Production Management, Database Optimization, DevOps Infrastructure.', 1, '')""")
+            'reyadh', 'cto123', 'Reyadh (System Owner)', 'Founder & Developer', '01825221830', 
+            'The Supreme Mind behind Vivid Core IT Ecosystem. System Architect, Lead Developer, and Ultimate Platform Owner.', 
+            'System Architecture, Enterprise Automation, Core Backend Dev, Full-Stack Dev, Software Infrastructure, Database Optimization.', 1, '')""")
+    else:
+        # যদি অ্যাকাউন্ট আগে থেকেই থাকে, রোল এবং বায়ো আপডেট করে ওনারশিপ নিশ্চিত করা
+        cursor.execute("""UPDATE users SET 
+            fullname='Reyadh (System Owner)', 
+            role='Founder & Developer', 
+            bio='The Supreme Mind behind Vivid Core IT Ecosystem. System Architect, Lead Developer, and Ultimate Platform Owner.' 
+            WHERE username='reyadh'""")
     
     current_month = datetime.now().strftime("%Y-%m")
     cursor.execute("INSERT OR IGNORE INTO goals VALUES (?, 150000)", (current_month,))
@@ -177,9 +184,9 @@ else:
     active_users = df_users_all[df_users_all["last_seen"] >= five_mins_ago]
     
     for _, u_row in active_users.iterrows():
-        # ছবি ডেপ্লয়মেন্ট লজিক
+        # ছবি ডেপ্লয়মেন্ট লজিক 
         if u_row['profile_pic']:
-            st.sidebar.image(u_row['profile_pic'], width=35)
+            st.sidebar.image(io.BytesIO(u_row['profile_pic']), width=35)
         else:
             st.sidebar.image(DEFAULT_AVATAR, width=35)
             
@@ -257,7 +264,7 @@ else:
         if st.session_state.current_navigation == "📊 লাইভ ড্যাশবোর্ড":
             st.title("📊 Vivid Core আইটি অটোমেশন ড্যাশবোর্ড")
             st.subheader("👥 একটিভ টিম রিসোর্স কাউন্টার")
-            roles_to_count = ["Chairman", "CEO", "CTO", "Co-Founder", "Operation Officer", "Manager", "Moderator", "Editor", "Internee"]
+            roles_to_count = ["Chairman", "CEO", "Founder & Developer", "Co-Founder", "Operation Officer", "Manager", "Moderator", "Editor", "Internee"]
             c_cols = st.columns(len(roles_to_count))
             for idx, r_name in enumerate(roles_to_count):
                 count_val = len(df_users_all[df_users_all["role"].str.lower() == r_name.lower()])
@@ -319,7 +326,7 @@ else:
 
         # 👤 ৪. আমার প্রোফাইল এডিট করুন
         elif st.session_state.current_navigation == "👤 আমার প্রোফাইল এডিট করুন":
-            st.title("👤 মাই ড্যাсходোর্ড আইডি কার্ড快速কন্ট্রোল")
+            st.title("👤 মাই ড্যাсходোর্ড আইডি কার্ড কন্ট্রোল")
             with st.form("profile_control_form"):
                 f_name = st.text_input("আপনার নাম (Full Name)", value=my_meta["fullname"])
                 w_num = st.text_input("হোয়াটসঅ্যাপ নোড নাম্বার", value=my_meta["whatsapp"])
@@ -349,7 +356,7 @@ else:
                 ed_name = st.text_input("অ্যাসাইনকৃত এডিটর নাম:")
                 ed_cost = st.number_input("এডিটর খরচ (BDT):", min_value=0.0)
                 op_cost = st.number_input("অপারেশনাল কস্ট (BDT):", min_value=0.0)
-                if st.form_submit_button("অর্ডার সেভ করুন 💾"):
+                if st.form_submit_button("অर्डर সেভ করুন 💾"):
                     conn = get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("INSERT INTO orders (date, client_name, client_number, service_name, total_price, advance_paid, due_amount, editor_name, editor_cost, operation_cost, month_tag) VALUES (?,?,?,?,?,0,?, ?,?,?,?)",
@@ -375,7 +382,7 @@ else:
                     conn.close()
                     st.success("টাস্ক সফলভাবে ইস্যু করা হয়েছে!")
 
-        # ⚡ ৭. মডারেটর লাইভ টাস্ক আপডেট (ব্র্যাককেট সিনট্যাক্স ফিক্সড!)
+        # ⚡ ७. মডারেটর লাইভ টাস্ক আপডেট
         elif st.session_state.current_navigation == "⚡ মডারেটর লাইভ টাস্ক আপডেট":
             st.title("⚡ মডারেটর লাইভ টাস্ক আপডেট টার্মিনাল")
             @st.fragment(run_every=1)
@@ -416,7 +423,7 @@ else:
 
         # 👮 ৯. অ্যাডমিন ও CTO কন্ট্রোল প্যানেল (ভেরিফাই গেটওয়ে নোড - প্রটেক্টেড)
         elif is_verified and st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল":
-            st.title("👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল")
+            st.title("👮 অ্যাডমিন কন্ট্রোল প্যানেল")
             st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
             for idx, u_row in df_users_all.iterrows():
                 col_v1, col_v2 = st.columns([3, 1])
@@ -441,7 +448,7 @@ else:
                             st.rerun()
 
         # 🕵️ ১০. সিক্রেট ইনবক্স স্পাইডার (প্রটেক্টেড)
-        elif is_verified and st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)":
+        elif is_verified and st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স推স্পাইডার (Spy)":
             st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার (Enterprise Spy Terminal)")
             conn = get_db_connection()
             df_spy = pd.read_sql_query("SELECT * FROM chat_messages ORDER BY id DESC", conn)
@@ -454,7 +461,6 @@ else:
     st.markdown("---")
     st.caption(f"🟢 Server Node Status: Active | 🚀 Real-time Tracking Engine Active (1s heartbeats)")
     
-    # এডিটর এবং লাইভ চ্যাট ছাড়া বাকি পেজগুলোর জন্য অটো ১ সেকেন্ড লুপ ব্যাকগ্রাউন্ড রিলোড ট্র্রিগার
     if st.session_state.current_navigation not in ["💬 লাইভ চ্যাট রুম", "⚡ মডারেটর লাইভ টাস্ক আপডেট"] and not is_editor:
         time.sleep(1)
         st.rerun()
