@@ -1,7 +1,6 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import plotly.express as px
 from datetime import datetime
 import random
@@ -26,22 +25,27 @@ MOTIVATION_FAILURE = [
     "🔍 এই মাসের ডাটা অ্যানালাইসিস করুন: কোন সার্ভিসটা সবচেয়ে কম সেল হয়েছে? সেটার প্রাইসিং বা অফার রি-ডিজائن করুন।"
 ]
 
-# --- ২. গুগল শিট লাইভ কানেকশন ---
-@st.cache_data(ttl=5)  # প্রতি ৫ সেকেন্ড পর পর ডাটা অটো রিফ্রেশ হবে
-def load_data_from_google_sheet():
+# --- ২. নতুন নিয়মে গুগল শিট লাইভ কানেকশন (No Credentials Needed) ---
+@st.cache_resource(ttl=5) # প্রতি ৫ সেকেন্ড পর পর ডাটা অটো রিফ্রেশ হবে
+def connect_sheet():
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        # গিটহাব বা স্ট্রিমলিট সিক্রেটস থেকে ক্রেডেনশিয়াল রিড করা
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-        client = gspread.authorize(creds)
-        # আপনার ড্রাগ-ড্রপ করা শিটের নাম
-        sheet = client.open("vivid_vistas_db").sheet1
-        data = sheet.get_all_records()
-        return sheet, pd.DataFrame(data)
-    except Exception as e:
-        return None, pd.DataFrame()
+        # এটি স্ট্রিমলিটের নতুন ডিরেক্ট গুগল শিট কানেক্টর
+        return st.connection("gsheets", type=GSheetsConnection)
+    except Exception:
+        return None
 
-sheet, df_main = load_data_from_google_sheet()
+conn = connect_sheet()
+
+def load_data():
+    if conn:
+        try:
+            # শিটের প্রথম ট্যাব থেকে ডাটা রিড করা
+            return conn.read(worksheet="vivid_vistas_db")
+        except Exception:
+            return pd.DataFrame()
+    return pd.DataFrame()
+
+df_main = load_data()
 
 # --- ৩. আইডি, পাসওয়ার্ড ও রোলস ---
 USER_DB = {
@@ -116,8 +120,8 @@ else:
             
             if submit_btn:
                 if not client_name or not client_phone:
-                    st.error("ক্লায়েন্টের নাম এবং মোবাইল নাম্বার দেওয়া বাধ্যতামূলক!")
-                elif sheet is None:
+                    st.error("ক্লায়েন্টের নাম এবং মোবাইল নাম্বার দেওয়া বাধ্যতামুলক!")
+                elif conn is None:
                     st.error("গুগল শিট কানেকশন পাওয়া যায়নি!")
                 else:
                     due_amount = total_price - advance_paid
@@ -125,25 +129,28 @@ else:
                     current_month = datetime.now().strftime("%Y-%m")
                     current_year = datetime.now().strftime("%Y")
                     
-                    # গুগল শিটের রো ক্রমানুসারে সাজানো
-                    row_data = [
-                        current_date, client_name, client_phone, section, service_name,
-                        total_price, advance_paid, due_amount, camera_hours,
-                        editor_cost, operation_cost, current_month, current_year
-                    ]
+                    # নতুন ডাটার রো রেডি করা
+                    new_row = pd.DataFrame([{
+                        "Date": current_date, "Client Name": client_name, "Client Number": client_phone,
+                        "Section": section, "Service Name": service_name, "Total Package Price": total_price,
+                        "Advance Paid": advance_paid, "Due Amount": due_amount, "Camera Rent Hours": camera_hours,
+                        "Editor Cost": editor_cost, "Operation Cost": operation_cost, "Month": current_month, "Year": current_year
+                    }])
                     
                     try:
-                        sheet.append_row(row_data)
+                        # ডাটা গুগল শিটের নিচে যুক্ত করা
+                        updated_df = pd.concat([df_main, new_row], ignore_index=True)
+                        conn.update(worksheet="vivid_vistas_db", data=updated_df)
                         st.success(f"🎉 চমৎকার! {client_name}-এর ডাটা সরাসরি ওয়েবসাইটে আপডেট করা হয়েছে।")
-                        st.cache_data.clear() # সাথে সাথে ফ্রেশ ডাটা লোড করার জন্য cache ক্লিয়ার
-                    except Exception:
-                        st.error("ডাটা সেভ করতে সমস্যা হচ্ছে।")
+                        st.cache_resource.clear() # ক্যাশ ক্লিয়ার করা হলো যেন ড্যাশবোর্ডে সাথে সাথে দেখায়
+                    except Exception as e:
+                        st.error("ডাটা সেভ করতে সমস্যা হচ্ছে। গুগল শিটের পারমিশন চেক করুন।")
 
     # ==========================================
     # ৬. মেইন ড্যাশবোর্ড ও লাভ-ক্ষতি পেজ
     # ==========================================
     elif menu == "📊 মেইন ড্যাশবোর্ড":
-        st.title("📊 Vivid Control Center — রিয়েল-টাইম অ্যানালিটিক্স")
+        st.title("📊 Vivid Control Center — রিয়েল-টাইม অ্যানালিটিক্স")
         
         if df_main.empty:
             st.warning("গুগল শিটে কোনো ডাটা পাওয়া যায়নি বা কানেকশন পেন্ডিং।")
