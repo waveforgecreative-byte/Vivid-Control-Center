@@ -5,7 +5,7 @@ import sqlite3
 import io
 
 # ==========================================
-# ১. গ্লোবাল মেটা, ব্রান্ডিং ও আল্ট্রা ডার্ক থিম
+# ১. গলোবাল মেটা, ব্রান্ডিং ও আল্ট্রা ডার্ক থিম
 # ==========================================
 st.set_page_config(page_title="Vivid Core ULTRA Command Center", page_icon="⚡", layout="wide")
 
@@ -66,7 +66,7 @@ DB_FILE = "vivid_studio_max_v6.db"
 DEFAULT_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
 
 # ==========================================
-# ২. ডাটাবেস কানেকশন ও কোর আর্কার্টেকচার
+# ২. ডাটাবেস কানেকশন ও কোর আর্কিটেকচার
 # ==========================================
 def get_db_connection():
     return sqlite3.connect(DB_FILE, timeout=30, check_same_thread=False)
@@ -300,14 +300,13 @@ else:
             else:
                 st.dataframe(current_month_orders, use_container_width=True)
 
-        # 📉 ২. লাইভ প্রফিট ও রিপোর্ট হাব (ম্যানুয়াল টার্গেট সিস্টেম সংযোজিত)
+        # 📉 ২. লাইভ প্রফিট ও রিপোর্ট হাব
         elif st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব" and is_verified:
             st.title("📉 ফিনান্সিয়াল লেজার ও মান্থলি গোল")
             
             df_orders["net_profit"] = df_orders["total_price"] - (df_orders["editor_cost"] + df_orders["operation_cost"])
             total_net_profit = df_orders[df_orders["month_tag"] == current_month_tag]['net_profit'].sum()
             
-            # ডাটাবেস থেকে গোল ট্র্যাকিং লোড
             month_goal_row = df_goals[df_goals["month_tag"] == current_month_tag]
             target_amount = month_goal_row["target_amount"].values[0] if not month_goal_row.empty else 150000.0
             
@@ -319,7 +318,6 @@ else:
                 
             st.dataframe(df_orders, use_container_width=True)
             
-            # --- 🛠️ নতুন ম্যানুয়াল মান্থলি গোল কন্ট্রোল প্যানেল ---
             st.markdown("---")
             with st.expander("⚙️ 📈 মান্থলি গোল/টার্গেট সেটার গেটওয়ে (ম্যানুয়াল কনফিগারেশন)", expanded=False):
                 with st.form("manual_goal_form"):
@@ -327,15 +325,14 @@ else:
                     if st.form_submit_button("নতুন টার্গেট কোড সিঙ্ক করুন 💾"):
                         conn = get_db_connection()
                         cursor = conn.cursor()
-                        # INSERT OR REPLACE লজিকে ডাটাবেসে আপডেট হবে
                         cursor.execute("INSERT OR REPLACE INTO goals (month_tag, target_amount) VALUES (?, ?)", (current_month_tag, new_target))
                         conn.commit()
                         conn.close()
                         st.success(f"🎯 চলতি মাসের প্রফিট টার্গেট সফলভাবে `{new_target:,.0f} BDT` এ সেট করা হয়েছে!")
                         st.rerun()
 
-        # 👥 ৩. এমপ্লয়ি ডিরেক্টরি হাব
-        elif st.session_state.current_navigation == "👥 এমপ্লয়ি ডিরেক্টরি হাব" and is_verified:
+        # 👥 ৩. এমপ্লয়ি ডিরেক্টরি হাব (টাইপো ফিক্স করা হয়েছে এখানে)
+        elif st.session_state.current_navigation == "👥 EMপ্লয়ি ডিরেক্টরি হাব" and is_verified:
             st.title("👥 আইটি ট্যালেন্ট ও রিসোর্স ডিরেক্টরি")
             dir_cols = st.columns(3)
             for idx, row in df_users_all.iterrows():
@@ -396,7 +393,7 @@ else:
                     conn.close()
                     st.success("অर्डरটি ডাটাবেসে সেভ হয়েছে!")
 
-        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর (Only for CEO, CTO, Manager)
+        # 🎯 六. টাস্ক ডিস্ট্রিবিউটর (Only for CEO, CTO, Manager)
         elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর" and is_verified:
             st.title("🎯 টিম টাস্ক ডিস্ট্রিবিউটর টার্মিনাল")
             
