@@ -5,7 +5,7 @@ import sqlite3
 import io
 
 # ==========================================
-# ১. গলোবাল মেটা, ব্রান্ডিং ও আল্ট্রা ডার্ক থিম
+# ১. গ্লোবাল মেটা, ব্রান্ডিং ও আল্ট্রা ডার্ক থিম
 # ==========================================
 st.set_page_config(page_title="Vivid Core ULTRA Command Center", page_icon="⚡", layout="wide")
 
@@ -250,7 +250,7 @@ else:
                 "💬 লাইভ চ্যাট রুম",
                 "✍️ নতুন অর্ডার এন্ট্রি",
                 "🎯 টাস্ক ডিস্ট্রিবিউটর",
-                "⚡ মডারেটর লাইভ টাস্ক আপডেট",
+                "⚡ মডারেটর লাইভ টাস্ক আদেশ",
                 "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল",
                 "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)",
                 "👤 আমার প্রোফাইল এডিট করুন"
@@ -331,7 +331,7 @@ else:
                         st.success(f"🎯 চলতি মাসের প্রফিট টার্গেট সফলভাবে `{new_target:,.0f} BDT` এ সেট করা হয়েছে!")
                         st.rerun()
 
-        # 👥 ৩. এমপ্লয়ি ডিরেক্টরি হাব (টাইপো ফিক্স করা হয়েছে এখানে)
+        # 👥 ৩. এমপ্লয়ি ডিরেক্টরি হাব
         elif st.session_state.current_navigation == "👥 EMপ্লয়ি ডিরেক্টরি হাব" and is_verified:
             st.title("👥 আইটি ট্যালেন্ট ও রিসোর্স ডিরেক্টরি")
             dir_cols = st.columns(3)
@@ -393,7 +393,7 @@ else:
                     conn.close()
                     st.success("অर्डरটি ডাটাবেসে সেভ হয়েছে!")
 
-        # 🎯 六. টাস্ক ডিস্ট্রিবিউটর (Only for CEO, CTO, Manager)
+        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর (Only for CEO, CTO, Manager)
         elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর" and is_verified:
             st.title("🎯 টিম টাস্ক ডিস্ট্রিবিউটর টার্মিনাল")
             
@@ -548,4 +548,8 @@ else:
     # ৫. গ্লোবাল ফুটার 
     # ==========================================
     st.markdown("---")
-    st.caption(f"🟢 Server Node Status: Secure & Active | Core Database Synced Successfully")
+    col_foot1, col_foot2 = st.columns([1, 1])
+    with col_foot1:
+        st.caption("⚡ Developed by Md Reyadh (CTO)")
+    with col_foot2:
+        st.markdown("<p style='text-align: right; margin: 0; padding: 0; font-size: 0.85rem; color: #64748b;'>🟢 Server Node Status: Secure & Active | Core Database Synced Successfully</p>", unsafe_allow_html=True)
