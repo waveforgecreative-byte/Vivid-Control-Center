@@ -8,7 +8,7 @@ import time
 import io
 
 # ==========================================
-# ১. গলোবাল মেটা, ব্রান্ডিং ও আইটি এজেন্সি আল্ট্রা থিম
+# ১. গ্লোবাল মেটা, ব্রান্ডিং ও আইটি এজেন্সি আল্ট্রা থিম
 # ==========================================
 st.set_page_config(page_title="Vivid Core ULTRA Command Center", page_icon="⚡", layout="wide")
 
@@ -28,8 +28,8 @@ st.markdown("""
         object-fit: cover !important;
         border: 2px solid #00f2fe;
         box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
-        image-rendering: -webkit-optimize-contrast; /* ক্রোম/সাফারির জন্য ছবি শার্প করার ট্রিক */
-        image-rendering: auto;
+        image-rendering: -webkit-optimize-contrast !important;
+        image-rendering: crisp-edges !important;
     }
     
     /* চ্যাট বাবল থিম */
@@ -69,10 +69,8 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT, role_tag TEXT, title TEXT, content TEXT, timestamp TEXT)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS goals (month_tag TEXT PRIMARY KEY, target_amount REAL)''')
     
-    # পুরোনো ডামি এডমিন অ্যাকাউন্ট থাকলে তা ক্লিনআপ বা রিমুভ করা
     cursor.execute("DELETE FROM users WHERE username='admin'")
     
-    # আপনার নতুন মাস্টার প্রোফাইল সেটিংস (CTO & 49% Production Shareholder)
     cursor.execute("SELECT COUNT(*) FROM users WHERE username='reyadh'")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""INSERT INTO users VALUES (
@@ -160,7 +158,6 @@ else:
     current_user = st.session_state.user
     my_meta = USER_DB[current_user]
     user_role = my_meta["role"]
-    # 'reyadh' আইডি এখন থেকে সিস্টেমের মাস্টার রুট/সুপার এডমিন হিসেবে কাজ করবে
     is_verified_officer = my_meta["is_verified"] or (user_role in ["CTO", "Chairman", "Admin"])
     
     update_activity(current_user)
@@ -170,9 +167,9 @@ else:
     # ==========================================
     st.sidebar.markdown("<h1 style='color:#00f2fe; text-align:center; font-family:monospace; font-weight:bold; letter-spacing:2px;'>VIVID CORE</h1>", unsafe_allow_html=True)
     
-    # সাইডবারে ইমেজ ক্রিস্পি রেন্ডারিং প্যাচ
     if my_meta["pic"]:
-        st.sidebar.image(io.BytesIO(my_meta["pic"]), width=120)
+        # output_format='PNG' দিয়ে কম্প্রেশন এবং ফেটে যাওয়া বন্ধ করা হলো
+        st.sidebar.image(io.BytesIO(my_meta["pic"]), width=120, output_format='PNG')
     else:
         st.sidebar.image(DEFAULT_AVATAR_URL, width=120, caption="IT Identity Card")
         
@@ -183,7 +180,6 @@ else:
         st.sidebar.markdown("<span class='badge-verified'>🔒 SECURE OFFICER ENABLED</span>", unsafe_allow_html=True)
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("---")
     st.sidebar.markdown("🛰️ **অনলাইন নেটওয়ার্ক নোডস**")
     
     for user, last_seen in list(st.session_state.active_users.items()):
@@ -191,7 +187,7 @@ else:
             meta = USER_DB.get(user, {"fullname": user, "role": "User", "pic": None})
             col_s1, col_s2 = st.sidebar.columns([1, 4])
             if meta["pic"]:
-                col_s1.image(io.BytesIO(meta["pic"]), width=30)
+                col_s1.image(io.BytesIO(meta["pic"]), width=30, output_format='PNG')
             else:
                 col_s1.image(DEFAULT_AVATAR_URL, width=30)
             col_s2.markdown(f"<span class='active-dot'></span> {meta['fullname']} <small style='color:#38bdf8;'>`{meta['role']}`</small>", unsafe_allow_html=True)
@@ -270,7 +266,7 @@ else:
             current_month_sales = df_orders[df_orders["month_tag"] == current_month_tag]["total_price"].sum()
             progress_pct = min(current_month_sales / live_target, 1.0) if live_target > 0 else 0.0
             
-            st.subheader("🎯 মান্থলি এজেন্সি সেলস গোল ট্র্যাকিং")
+            st.subheader("🎯 মান্থলি agency সেলস গোল ট্র্যাকিং")
             col_p1, col_p2 = st.columns([3, 1])
             with col_p1:
                 st.write(f"চলতি মাসের রেভিনিউ: **{current_month_sales:,.0f} BDT** / এজেন্সি কাস্টম লক্ষ্যমাত্রা: **{live_target:,.0f} BDT**")
@@ -294,9 +290,8 @@ else:
             with col_target:
                 st.markdown("<div class='profile-card'>", unsafe_allow_html=True)
                 
-                # ডিরেক্টরি কার্ডের ইমেজ রেন্ডারিং হাই-কোয়ালিটি করা হলো 
                 if row["profile_pic"]:
-                    st.image(io.BytesIO(row["profile_pic"]), width=140)
+                    st.image(io.BytesIO(row["profile_pic"]), width=140, output_format='PNG')
                 else:
                     st.image(DEFAULT_AVATAR_URL, width=140)
                 
@@ -353,7 +348,7 @@ else:
             st.markdown("</div>", unsafe_allow_html=True)
             
             with st.form("priv_form", clear_on_submit=True):
-                msg_p_txt = st.text_input("सिक्योरड মেসেজ ইনপুট...")
+                msg_p_txt = st.text_input("সিকিউরড মেসেজ ইনপুট...")
                 if st.form_submit_button("ডাটা প্যাকেট পুশ 🔐"):
                     if msg_p_txt:
                         st.session_state.global_chats.append({
@@ -378,12 +373,13 @@ else:
             with col_u2:
                 u_skills = st.text_input("টেকনিক্যাল এক্সপেরিয়েন্স ও স্কিলসেট", value=my_meta["skills"])
                 
-                # রিভিউ এডিটিংয়ে ইমেজ শার্পনেস প্রিভিউ
                 if my_meta["pic"]:
-                    st.image(io.BytesIO(my_meta["pic"]), width=120, caption="বর্তমান প্রোফাইল ছবি")
+                    st.image(io.BytesIO(my_meta["pic"]), width=120, caption="বর্তমান প্রোফাইল ছবি", output_format='PNG')
                 else:
                     st.image(DEFAULT_AVATAR_URL, width=120, caption="ডিফল্ট ইমেজ")
-                u_pic = st.file_uploader("새로운 প্রোফাইল ছবি আপলোড (.jpg/.png)", type=["jpg", "png"])
+                
+                # চাইনিজ ক্যারেক্টারটি এখানে ফিক্স করে সম্পূর্ণ বাংলা করা হলো
+                u_pic = st.file_uploader("নতুন প্রোফাইল ছবি আপলোড (.jpg/.png)", type=["jpg", "png"])
             
             if st.form_submit_button("ডাটাবেস কোড সিঙ্ক করুন 💾"):
                 conn = get_db_connection()
@@ -436,7 +432,7 @@ else:
     # ==========================================
     # 🎯 টাস্ক ডিস্ট্রিবিউটর
     # ==========================================
-    elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটor":
+    elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর":
         st.title("🎯 টাস্ক ও ওয়ার্কফ্লো ডিস্ট্রিবিউটর")
         editor_list = [u for u in USER_DB if USER_DB[u]["role"] == "Editor"]
         
