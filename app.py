@@ -72,8 +72,7 @@ DEFAULT_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w
 # ২. ডাটাবেস কানেকশন ও থ্রেড-সেফ আর্কিটেকচার
 # ==========================================
 def get_db_connection():
-    # ক্লাউড মাল্টিথ্রেড এনভায়রনমেন্টের লক ফিক্স করতে timeout ও check_same_thread ডিফাইন করা হলো
-    return sqlite3.connect(DB_FILE, timeout=20, check_same_thread=False)
+    return sqlite3.connect(DB_FILE, timeout=30, check_same_thread=False)
 
 def init_db():
     conn = get_db_connection()
@@ -93,17 +92,23 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, sender_name TEXT, sender_role TEXT, msg TEXT, timestamp TEXT)''')
     
-    # মালিকানা ও ব্র্যান্ডিং ক্রেডিট ডেপ্লয়মেন্ট ফিক্স (Reyadh - Owner & Founder)
+    # KeyError ও কলাম মিসিং বাগ প্রোটেকশন নোড
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN last_seen TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
+    # [FIX] Requirement অনযায়ী dynamic branding: "Developed by Md Reyadh" & "CTO & Lead Developer"
     cursor.execute("SELECT COUNT(*) FROM users WHERE username='reyadh'")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""INSERT INTO users (username, password, fullname, role, whatsapp, bio, skills, is_officer_verified, last_seen) VALUES (
-            'reyadh', 'cto123', 'Reyadh (System Owner)', 'Founder & Developer', '01825221830', 
+            'reyadh', 'cto123', 'Developed by Md Reyadh', 'CTO & Lead Developer', '01825221830', 
             'The Supreme Mind behind Vivid Core IT Ecosystem. System Architect, Lead Developer, and Ultimate Platform Owner.', 
             'System Architecture, Enterprise Automation, Core Backend Dev, Full-Stack Dev, Software Infrastructure, Database Optimization.', 1, '')""")
     else:
         cursor.execute("""UPDATE users SET 
-            fullname='Reyadh (System Owner)', 
-            role='Founder & Developer', 
+            fullname='Developed by Md Reyadh', 
+            role='CTO & Lead Developer', 
             bio='The Supreme Mind behind Vivid Core IT Ecosystem. System Architect, Lead Developer, and Ultimate Platform Owner.' 
             WHERE username='reyadh'""")
     
@@ -114,7 +119,6 @@ def init_db():
 
 init_db()
 
-# লাইভ ইউজার হার্টবিট ট্র্যাকার নোড
 def update_user_heartbeat(username):
     try:
         conn = get_db_connection()
@@ -122,8 +126,8 @@ def update_user_heartbeat(username):
         cursor.execute("UPDATE users SET last_seen=? WHERE username=?", (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), username))
         conn.commit()
         conn.close()
-    except Exception as e:
-        pass # ব্যাকগ্রাউন্ড লক এড়াতে এক্সসেপশন হ্যান্ডলিং
+    except Exception:
+        pass
 
 # সেশন হ্যান্ডলিং
 if "logged_in" not in st.session_state:
@@ -162,6 +166,9 @@ else:
     df_goals = pd.read_sql_query("SELECT * FROM goals", conn)
     conn.close()
     
+    if "last_seen" not in df_users_all.columns:
+        df_users_all["last_seen"] = ""
+        
     user_role = my_meta["role"]
     is_editor = user_role.lower() == "editor"
     is_verified = int(my_meta["is_officer_verified"]) == 1
@@ -182,6 +189,7 @@ else:
     st.sidebar.markdown("🛰️ **লাইভ অনলাইন ট্র্যাকার নোডস (৫ মি.)**")
     
     five_mins_ago = (datetime.now() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+    df_users_all["last_seen"] = df_users_all["last_seen"].fillna("")
     active_users = df_users_all[df_users_all["last_seen"] >= five_mins_ago]
     
     for _, u_row in active_users.iterrows():
@@ -200,7 +208,7 @@ else:
     current_month_tag = datetime.now().strftime("%Y-%m")
 
     # ==========================================
-    # 🔒 এডিটর সিকিউরিটি রেস্ট্রিকশন প্যানেল
+    # 🔒 এডিটর প্যানেল
     # ==========================================
     if is_editor:
         st.title("🛠️ এডিটর ড্যাশবোর্ড ও ওয়ার্ক প্যানেল")
@@ -261,7 +269,7 @@ else:
         if st.session_state.current_navigation == "📊 লাইভ ড্যাশবোর্ড":
             st.title("📊 Vivid Core আইটি অটোমেশন ড্যাশবোর্ড")
             st.subheader("👥 একটিভ টিম রিসোর্স কাউন্টার")
-            roles_to_count = ["Chairman", "CEO", "Founder & Developer", "Co-Founder", "Operation Officer", "Manager", "Moderator", "Editor", "Internee"]
+            roles_to_count = ["Chairman", "CEO", "CTO & Lead Developer", "Co-Founder", "Operation Officer", "Manager", "Moderator", "Editor", "Internee"]
             c_cols = st.columns(len(roles_to_count))
             for idx, r_name in enumerate(roles_to_count):
                 count_val = len(df_users_all[df_users_all["role"].str.lower() == r_name.lower()])
@@ -294,7 +302,7 @@ else:
                     st.markdown(f"📝 <b>Bio:</b> <small>{row['bio'] if row['bio'] else 'No Bio Set.'}</small>", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
 
-        # 💬 ৩. লাইভ চ্যাট রুম (১ সেকেন্ড ফাস্ট সিঙ্ক লুপ)
+        # 💬 ৩. লাইভ চ্যাট রুম
         elif st.session_state.current_navigation == "💬 লাইভ চ্যাট রুম":
             st.title("💬 সেশন সিঙ্ক লাইভ চ্যাট হাব (Messenger Mode)")
             
@@ -344,7 +352,7 @@ else:
 
         # ✍️ ৫. নতুন অর্ডার এন্ট্রি
         elif st.session_state.current_navigation == "✍️ নতুন অর্ডার এন্ট্রি":
-            st.title("✍️ নতুন ক্লায়েন্ট অর্ডার এন্ট্রি সিস্টেম")
+            st.title("✍️ নতুন ক্লায়েন্ট অর্ডার এন্ট্রি")
             with st.form("order_entry_form"):
                 c_name = st.text_input("ক্লায়েন্টের নাম:")
                 c_num = st.text_input("মোবাইল নাম্বার:")
@@ -362,7 +370,7 @@ else:
                     conn.close()
                     st.success("অর্ডারটি ডাটাবেসে সেভ হয়েছে!")
 
-        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর
+        # 🎯 6. টাস্ক ডিস্ট্রিবিউটর
         elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর":
             st.title("🎯 টিম টাস্ক ডিস্ট্রিবিউটর টার্মিনাল")
             with st.form("task_dist_form", clear_on_submit=True):
@@ -404,7 +412,7 @@ else:
             show_live_tasks_for_mod()
 
         # 📉 ৮. লাইভ প্রফিট ও রিপোর্ট হাব (প্রটেক্টেড)
-        elif is_verified and st.session_state.current_navigation == "📉 লাইভ প্রফিট ও REPORT HUB":
+        elif is_verified and st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব":
             st.title("📉 ফিনান্সিয়াল লেজার ও মান্থলি গোল")
             df_orders["net_profit"] = df_orders["total_price"] - (df_orders["editor_cost"] + df_orders["operation_cost"])
             total_net_profit = df_orders[df_orders["month_tag"] == current_month_tag]['net_profit'].sum()
@@ -418,7 +426,7 @@ else:
                 st.markdown(f"<div class='goal-failed'><h3>⚠️ অ্যালার্ট: টার্গেট ফেইলুর রিস্ক!</h3><p>শর্টেজ: <b>{shortage:,.0f} BDT</b></p></div>", unsafe_allow_html=True)
             st.dataframe(df_orders, use_container_width=True)
 
-        # 👮 ৯. অ্যাডমিন ও CTO কন্ট্রোল প্যানেল (প্রটেক্টেড)
+        # 👮 ৯. অ্যাডমিন ও CTO প্যানেল (প্রটেক্টেড)
         elif is_verified and st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল":
             st.title("👮 অ্যাডমিন ও ওনার কন্ট্রোল প্যানেল")
             st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
@@ -444,7 +452,7 @@ else:
                             st.warning("ভেরিফিকেশন রিমুভড!")
                             st.rerun()
 
-        # 🕵️ ১০. সিক্রেট ইনবক্স স্পাইডার (প্রটেক্টেড)
+        # 🕵️ ১০. সিক্রেট ইনবক্স স্পাইডার (Spy) (প্রটেক্টেড)
         elif is_verified and st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)":
             st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার (Enterprise Spy Terminal)")
             conn = get_db_connection()
@@ -453,7 +461,7 @@ else:
             st.dataframe(df_spy, use_container_width=True)
 
     # ==========================================
-    # ৪. ১ সেকেন্ড গ্লোবাল লাইভ হার্টবিট রিলোডার
+    # ৪. গ্লোবাল রিলোডার ও লাইভ হার্টবিট থ্রেড লুপ
     # ==========================================
     st.markdown("---")
     st.caption(f"🟢 Server Node Status: Active | 🚀 Real-time Tracking Engine Active (1s heartbeats)")
