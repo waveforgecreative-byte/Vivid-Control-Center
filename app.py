@@ -5,59 +5,85 @@ from datetime import datetime
 import sqlite3
 import random
 import time
+from PIL import Image
+import io
 
-# ১. প্রিমিয়াম পেজ কনফিগারেশন ও কাস্টম থিমিং
-st.set_page_config(page_title="Vivid Control Center ULTRA PRO", page_icon="🎬", layout="wide")
+# ==========================================
+# ১. গ্লোবাল মেটা, ব্রান্ডিং ও থিমিং (Developed by REYADH)
+# ==========================================
+st.set_page_config(page_title="Vivid Core ULTRA Command Center", page_icon="⚡", layout="wide")
 
+# সাইবারপাঙ্ক প্রিমিয়াম ডার্ক ইউআই থিম
 st.markdown("""
 <style>
     .reportview-container { background: #0b0e14; }
     .chat-bubble-user { background-color: #005c4b; color: #d9fdd3; padding: 12px; border-radius: 12px; margin: 8px 0; text-align: right; max-width: 75%; margin-left: auto; box-shadow: 1px 1px 5px rgba(0,0,0,0.2); }
     .chat-bubble-other { background-color: #202c33; color: #e9edef; padding: 12px; border-radius: 12px; margin: 8px 0; text-align: left; max-width: 75%; box-shadow: 1px 1px 5px rgba(0,0,0,0.2); }
+    .global-chat-bubble { background-color: #1f2c34; border-left: 5px solid #00a884; padding: 10px; border-radius: 4px; margin: 5px 0; }
     .active-dot { height: 12px; width: 12px; background-color: #00e676; border-radius: 50%; display: inline-block; margin-right: 8px; }
+    .profile-card { background: #1a1f2c; padding: 15px; border-radius: 12px; border: 1px solid #2d3748; text-align: center; margin-bottom: 15px; }
+    .badge-officer { background-color: #e53e3e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+    .badge-verified { background-color: #3182ce; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+    .notice-box { background: linear-gradient(135deg, #1e1b4b, #311042); border-left: 6px solid #d946ef; padding: 20px; border-radius: 10px; color: #f3e8ff; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
-DB_FILE = "vivid_studio_ultimate_v4.db"
+DB_FILE = "vivid_studio_max_v5.db"
 
-# --- ২. ডাটাবেস আর্কিটেকচার (ইউজার গোল টেবিল সহ) ---
+# ==========================================
+# ২. ডাইনামিক ডেটাবেস ইঞ্জিন আর্কিটেকচার
+# ==========================================
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+    
+    # অর্ডার টেবিল
     cursor.execute('''CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, client_name TEXT, client_number TEXT,
-        section TEXT, service_name TEXT, total_price REAL, advance_paid REAL, due_amount REAL,
+        service_name TEXT, total_price REAL, advance_paid REAL, due_amount REAL,
         editor_name TEXT, editor_cost REAL, operation_cost REAL, month_tag TEXT)''')
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, role TEXT, section TEXT)''')
+    # অ্যাডভান্সড ইউজার প্রোফাইল টেবিল (সেকশন বাদ, হোয়াটসঅ্যাপ, বায়ো, ছবি, স্কিল এবং ভেরিফাইড অফিসার লক যুক্ত)
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY, password TEXT, fullname TEXT, role TEXT, 
+        whatsapp TEXT, bio TEXT, skills TEXT, is_officer_verified INTEGER, profile_pic BLOB)''')
     
+    # টাস্ক টেবিল
     cursor.execute('''CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY, client TEXT, editor TEXT, task_detail TEXT, 
         assign_time TEXT, start_time TEXT, submit_time TEXT,
         status TEXT, final_link TEXT, revision_note TEXT, editor_payment REAL)''')
     
+    # গ্লোবাল নোটিশ বোর্ড টেবিল
+    cursor.execute('''CREATE TABLE IF NOT EXISTS notices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, author TEXT, role_tag TEXT, title TEXT, content TEXT, timestamp TEXT)''')
+    
+    # টার্গেট গোল টেবিল
     cursor.execute('''CREATE TABLE IF NOT EXISTS goals (month_tag TEXT PRIMARY KEY, target_amount REAL)''')
     
+    # ডিফল্ট অ্যাডমিন (চেয়ারম্যান) ও প্রোফাইল সেটআপ
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
-        cursor.execute("INSERT INTO users VALUES ('admin', '123', 'Admin', 'Management')")
-        cursor.execute("INSERT INTO users VALUES ('manager_main', '456', 'Manager', 'Management')")
-        cursor.execute("INSERT INTO users VALUES ('moderator_crew', '789', 'Moderator', 'Studio')")
-        cursor.execute("INSERT INTO users VALUES ('shakil', 'editor123', 'Editor', 'Production')")
-        cursor.execute("INSERT INTO users VALUES ('rahat', 'editor456', 'Editor', 'Studio')")
+        cursor.execute("""INSERT INTO users VALUES (
+            'admin', '123', 'Chairman Reyadh', 'Chairman', '01700000000', 
+            'Founder & Chairman of Vivid Core.', 'Management & Development', 1, NULL)""")
+        cursor.execute("""INSERT INTO users VALUES (
+            'manager_main', '456', 'Alamin Islam', 'Manager', '01800000000', 
+            'General Manager', 'Operations', 1, NULL)""")
         
-    # ডিফল্ট টার্গেট গোল সেটআপ
     current_month = datetime.now().strftime("%Y-%m")
-    cursor.execute("INSERT OR IGNORE INTO goals VALUES (?, 100000)", (current_month,))
+    cursor.execute("INSERT OR IGNORE INTO goals VALUES (?, 150000)", (current_month,))
     
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- ৩. ইন-মেমোরি ও ডাটাবেস লাইভ ইঞ্জিন ---
+# ==========================================
+# ৩. ইন-মেমোরি লাইভ স্টেট ও নোটিফিকেশন ইঞ্জিন
+# ==========================================
 if "global_chats" not in st.session_state:
-    st.session_state.global_chats = []
+    st.session_state.global_chats = [] # ফরম্যাট: {"sender":x, "receiver":y, "msg":z, "time":t, "type": "public"/"private"}
 if "notifications" not in st.session_state:
     st.session_state.notifications = []
 if "active_users" not in st.session_state:
@@ -66,393 +92,526 @@ if "active_users" not in st.session_state:
 def update_activity(username):
     st.session_state.active_users[username] = time.time()
 
-def trigger_live_notification(text, target_section):
+def trigger_live_notification(text, target_nav):
     st.session_state.notifications.append({
-        "text": text, "target": target_section, "time": datetime.now().strftime("%I:%M %p")
+        "text": text, "target": target_nav, "time": datetime.now().strftime("%I:%M %p")
     })
 
-def get_target_goal(month_tag):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT target_amount FROM goals WHERE month_tag = ?", (month_tag,))
-    res = cursor.fetchone()
-    conn.close()
-    return res[0] if res else 100000.0
+# ==========================================
+# ৪. ডেটাবেস ডাটা লোডার্স
+# ==========================================
+def get_db_connection():
+    return sqlite3.connect(DB_FILE)
 
-def update_target_goal(month_tag, amount):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO goals VALUES (?, ?)", (month_tag, amount))
-    conn.commit()
-    conn.close()
-
-def load_orders():
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT * FROM orders", conn)
-    conn.close()
-    return df
-
-def load_users():
-    conn = sqlite3.connect(DB_FILE)
+def load_user_dict():
+    conn = get_db_connection()
     df = pd.read_sql_query("SELECT * FROM users", conn)
     conn.close()
-    return df
+    u_dict = {}
+    for _, row in df.iterrows():
+        u_dict[row["username"]] = {
+            "password": row["password"], "fullname": row["fullname"], "role": row["role"],
+            "whatsapp": row["whatsapp"], "bio": row["bio"], "skills": row["skills"],
+            "is_verified": bool(row["is_officer_verified"]), "pic": row["profile_pic"]
+        }
+    return u_dict
 
-def load_tasks():
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT * FROM tasks", conn)
-    conn.close()
-    return df
+USER_DB = load_user_dict()
 
-df_orders = load_orders()
-df_users = load_users()
-df_tasks = load_tasks()
-
-USER_DB = {row["username"]: {"password": row["password"], "role": row["role"], "section": row["section"]} for _, row in df_users.iterrows()}
-
+# ==========================================
+# ৫. সেশন ও লগইন সিকিউরিটি ভেরিফিকেশন
+# ==========================================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-    st.session_state.role = ""
     st.session_state.user = ""
 if "current_navigation" not in st.session_state:
     st.session_state.current_navigation = "📊 লাইভ ড্যাশবোর্ড"
 
-# --- ৪. নোটিফিকেশন ইঞ্জিন ---
+# লাইভ অ্যালার্ট টপ পপআপ
 if st.session_state.logged_in and st.session_state.notifications:
     latest_notif = st.session_state.notifications[-1]
     with st.container():
         col_n1, col_n2 = st.columns([5, 1])
-        col_n1.warning(f"🔔 **লাইভ অ্যালার্ট:** {latest_notif['text']}")
-        if col_n2.button("সরাসরি যান ⚡", key="notif_redirect"):
+        col_n1.warning(f"🔔 **লাইভ নোটিফিকেশন:** {latest_notif['text']} ({latest_notif['time']})")
+        if col_n2.button("ভিউ করুন ⚡", key="redirect_btn"):
             st.session_state.current_navigation = latest_notif['target']
             st.session_state.notifications.pop()
             st.rerun()
 
-# --- ৫. সাইডবার লগইন ও এক্সেস কন্ট্রোল ---
+# --- লগইন স্ক্রিন ---
 if not st.session_state.logged_in:
-    st.title("🎬 Vivid Studio Ultra Server V4")
+    st.title("⚡ Vivid Core Ultimate Command Center V5")
+    st.markdown("### System Developed & Maintained by **REYADH**")
+    
     u_id = st.text_input("ইউজার আইডি (Username)")
     u_pass = st.text_input("পাসওয়ার্ড", type="password")
-    if st.button("সার্ভারে প্রবেশ করুন 🔐", use_container_width=True):
+    
+    if st.button("সার্ভারে কানেক্ট করুন 🔐", use_container_width=True):
         if u_id in USER_DB and USER_DB[u_id]["password"] == u_pass:
             st.session_state.logged_in = True
             st.session_state.user = u_id
-            st.session_state.role = USER_DB[u_id]["role"]
             update_activity(u_id)
+            st.success("সফলভাবে লগইন হয়েছে!")
             st.rerun()
         else:
-            st.error("ভুল তথ্য দিয়েছেন!")
+            st.error("ভুল ইউজার আইডি অথবা পাসওয়ার্ড!")
 else:
     current_user = st.session_state.user
-    user_role = st.session_state.role
+    my_meta = USER_DB[current_user]
+    user_role = my_meta["role"]
+    is_verified_officer = my_meta["is_verified"] or (user_role in ["Chairman", "Admin"])
+    
     update_activity(current_user)
     
+    # ==========================================
+    # ৬. সাইডবার কন্ট্রোল সেন্টার ও লাইভ মেম্বার ট্র্যাকার
+    # ==========================================
     st.sidebar.markdown("<h2 style='color:#00e676; text-align:center;'>VIVID CORE</h2>", unsafe_allow_html=True)
-    st.sidebar.write(f"👤 ইউজার: **{current_user.upper()}** | রোল: `{user_role}`")
     
-    # লাইভ মেম্বার লিস্ট
+    # প্রোফাইল পিকচার রেন্ডারিং
+    if my_meta["pic"]:
+        st.sidebar.image(io.BytesIO(my_meta["pic"]), width=100)
+    else:
+        st.sidebar.markdown("👤 *No Profile Picture*")
+        
+    st.sidebar.write(f"👤 **{my_meta['fullname']}**")
+    st.sidebar.write(f"🎖️ পদবি: `{user_role}`")
+    
+    if is_verified_officer:
+        st.sidebar.markdown("<span class='badge-verified'>🔒 VERIFIED OFFICER LOCK</span>", unsafe_allow_html=True)
+    
     st.sidebar.markdown("---")
-    st.sidebar.markdown("🟢 **অনলাইন টিম মেম্বারস**")
+    st.sidebar.markdown("🟢 **রিয়েল-টাইম লাইভ অনলাইন মেম্বারস**")
+    
     for user, last_seen in list(st.session_state.active_users.items()):
-        if time.time() - last_seen < 300:
-            user_sec = USER_DB.get(user, {}).get("section", "Unknown")
-            st.sidebar.markdown(f"<span class='active-dot'></span> {user} (`{user_sec}` সেকশন)", unsafe_allow_html=True)
+        if time.time() - last_seen < 300: # ৫ মিনিটের মধ্যে একটিভ থাকলে
+            meta = USER_DB.get(user, {"fullname": user, "role": "User", "pic": None})
+            col_s1, col_s2 = st.sidebar.columns([1, 4])
+            if meta["pic"]:
+                col_s1.image(io.BytesIO(meta["pic"]), width=25)
+            else:
+                col_s1.write("👤")
+            col_s2.markdown(f"<span class='active-dot'></span> {meta['fullname']} \n\n <small>`{meta['role']}`</small>", unsafe_allow_html=True)
 
-    if st.sidebar.button("লগআউট 🚪", use_container_width=True):
+    if st.sidebar.button("লগআউট করুন 🚪", use_container_width=True):
         st.session_state.active_users.pop(current_user, None)
         st.session_state.logged_in = False
         st.rerun()
 
-    # রোল অনুযায়ী মেনু ফিল্টারিং
-    if user_role in ["Admin", "Manager"]:
-        menu_options = ["📊 লাইভ ড্যাশবোর্ড", "📉 লাইভ প্রফিট ও রিপোর্ট হাব", "✍️ নতুন অর্ডার এন্ট্রি", "🎯 টাস্ক ডিস্ট্রিবিউটর", "💬 প্রিমিয়াম চ্যাট হাব"]
-    elif user_role == "Moderator":
-        menu_options = ["📊 লাইভ ড্যাশবোর্ড", "✍️ নতুন অর্ডার এন্ট্রি", "💬 প্রিমিয়াম চ্যাট হাব"]
-    elif user_role == "Editor":
-        menu_options = ["🎬 আমার এডিটিং প্যানেল", "💬 প্রিমিয়াম চ্যাট হাব"]
+    # ডাইনামিক ফিচার নেভিগেশন (রোল ও সিকিউরিটি বেসড)
+    menu_options = ["📊 লাইভ ড্যাশবোর্ড", "👥 এমপ্লয়ি ডিরেক্টরি হাব", "💬 লাইভ চ্যাট রুম"]
+    
+    if user_role == "Editor":
+        menu_options.append("🎬 আমার এডিটিং প্যানেল")
+    
+    if user_role in ["Chairman", "Admin", "Manager"]:
+        menu_options.append("✍️ নতুন অর্ডার এন্ট্রি")
+        menu_options.append("🎯 টাস্ক ডিস্ট্রিবিউটর")
         
-    if user_role == "Admin":
-        menu_options.append("➕ নতুন ইউজার তৈরি (Create User)")
+    if is_verified_officer: # পদবি যাই হোক, ভেরিফাইড অফিসার না হলে ফাইন্যান্স লক থাকবে
+        menu_options.append("📉 লাইভ প্রফিট ও রিপোর্ট হাব")
+        
+    if user_role in ["Chairman", "Admin"]:
+        menu_options.append("👮 অ্যাডমিন সিকিউরিটি ও ইউজার কন্ট্রোল")
+        menu_options.append("🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)")
 
-    if st.session_state.current_navigation not in menu_options:
-        st.session_state.current_navigation = menu_options[0]
-        
-    selected_menu = st.sidebar.radio("সিস্টেম নেভিগেশন", menu_options, index=menu_options.index(st.session_state.current_navigation))
+    selected_menu = st.sidebar.radio("সিস্টেম নেভিগেশন", menu_options, index=menu_options.index(st.session_state.current_navigation) if st.session_state.current_navigation in menu_options else 0)
     st.session_state.current_navigation = selected_menu
-
+    
     current_month_tag = datetime.now().strftime("%Y-%m")
+    
+    # ডেটাবেস থেকে রিয়েল-টাইম ডেটা রিড
+    conn = get_db_connection()
+    df_orders = pd.read_sql_query("SELECT * FROM orders", conn)
+    df_tasks = pd.read_sql_query("SELECT * FROM tasks", conn)
+    df_notices = pd.read_sql_query("SELECT * FROM notices ORDER BY id DESC LIMIT 1", conn)
+    conn.close()
 
     # ==========================================
-    # ৬. মেইন লাইভ ড্যাশবোর্ড (Admin, Manager, Moderator দেখতে পারবে)
+    # ৭. গ্লোবাল লাইভ নোটিশ বোর্ড (ড্যাশবোর্ডের উপরে)
+    # ==========================================
+    if not df_notices.empty:
+        notice = df_notices.iloc[0]
+        st.markdown(f"""
+        <div class='notice-box'>
+            <h4>📢 অফিশিয়াল নোটিশ: {notice['title']}</h4>
+            <p>{notice['content']}</p>
+            <hr style='border-color:#d946ef;'>
+            <small>📍 প্রকাশ করেছেন: <b>{notice['author']} ({notice['role_tag']})</b> | সময়: {notice['timestamp']}</small>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ==========================================
+    # ৮. মেইন লাইভ ড্যাশবোর্ড
     # ==========================================
     if st.session_state.current_navigation == "📊 লাইভ ড্যাশবোর্ড":
-        st.title("📊 লাইভ স্টুডিও ওভারভিউ ও টার্গেট ট্র্যাকার")
+        st.title("📊 Vivid Core লাইভ কমান্ড সেন্টার")
         
-        # লক্ষ্যমাত্রা নিয়ন্ত্রণ জোন
-        live_target = get_target_goal(current_month_tag)
+        # অটো কাউন্টার গ্রিড (চেয়ারম্যান থেকে ইন্টার্নি সবাই দেখতে পারবে ছবিতে)
+        st.subheader("👥 আমাদের বর্তমান টিম মেম্বার ডাইনামিক কাউন্টার")
         
-        if user_role == "Admin":
-            st.subheader("🎯 এই মাসের সেলস লক্ষ্যমাত্রা সেট করুন (Admin Only)")
-            new_target = st.number_input("টার্গেট অ্যামাউন্ট সেট করুন (BDT)", min_value=10000, value=int(live_target), step=5000)
-            if st.button("টার্গেট আপডেট করুন 📌"):
-                update_target_goal(current_month_tag, new_target)
-                st.success("গোল আপডেট হয়েছে!")
-                st.rerun()
-        else:
-            # ম্যানেজার ও মডারেটর শুধু টার্গেট দেখতে পারবে
-            st.info(f"🎯 **অ্যাডমিন কর্তৃক নির্ধারিত চলতি মাসের সেলস লক্ষ্যমাত্রা:** {live_target:,.0f} BDT")
+        conn = get_db_connection()
+        df_all_users = pd.read_sql_query("SELECT role FROM users", conn)
+        conn.close()
+        
+        role_counts = df_all_users["role"].value_counts()
+        roles_to_check = ['Chairman', 'CEO', 'CTO', 'Co-Founder', 'Operation Officer', 'Manager', 'Moderator', 'Editor', 'Internee']
+        
+        c_layout = st.columns(len(roles_to_check))
+        for idx, r_name in enumerate(roles_to_check):
+            count = role_counts.get(r_name, 0)
+            c_layout[idx].metric(r_name, f"{count} জন")
             
         st.markdown("---")
         
+        # প্রগ্রেস বার ট্র্যাকিং
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT target_amount FROM goals WHERE month_tag = ?", (current_month_tag,))
+        g_res = cursor.fetchone()
+        conn.close()
+        live_target = g_res[0] if g_res else 150000.0
+        
         if df_orders.empty:
-            st.info("সার্ভারে কোনো অর্ডার ডাটা নেই।")
+            st.info("চলতি মাসে এখনো কোনো অর্ডার এন্ট্রি করা হয়নি।")
         else:
-            # রিয়েল-টাইম লাইভ ক্যালকুলেশন (পেজ লোড হলেই ইনস্ট্যান্ট আপডেট হবে)
             current_month_sales = df_orders[df_orders["month_tag"] == current_month_tag]["total_price"].sum()
             progress_pct = min(current_month_sales / live_target, 1.0) if live_target > 0 else 0.0
             
-            st.subheader("📈 চলতি মাসের লাইভ লক্ষ্যমাত্রা প্রগ্রেস বার")
+            st.subheader("🎯 এই মাসের সেলস টার্গেট প্রগ্রেস")
             col_p1, col_p2 = st.columns([3, 1])
             with col_p1:
-                st.write(f"চলতি মাসের লাইভ সেলস: **{current_month_sales:,.0f} BDT** / লক্ষ্য: **{live_target:,.0f} BDT**")
+                st.write(f"চলতি মাসের সেলস: **{current_month_sales:,.0f} BDT** / লক্ষ্যমাত্রা: **{live_target:,.0f} BDT**")
                 st.progress(progress_pct)
             with col_p2:
-                st.markdown(f"### 📊 {progress_pct*100:.1f}% লক্ষ্য অর্জিত")
-                
-            if user_role in ["Admin", "Manager"]:
-                st.markdown("---")
-                st.subheader("💼 সার্বিক স্টুডিও রিয়েল-টাইম ফাইন্যান্স (মডারেটর এই প্যানেল দেখবে না)")
-                total_sales = df_orders["total_price"].sum()
-                total_due = df_orders["due_amount"].sum()
-                total_expenses = df_orders["editor_cost"].sum() + df_orders["operation_cost"].sum()
-                net_profit = total_sales - total_expenses
-                
-                m1, m2, m3 = st.columns(3)
-                m1.metric("💰 মোট সেলস ভলিউম", f"{total_sales:,.0f} BDT")
-                m2.metric("📈 নীট লাভ (Net Profit)", f"{net_profit:,.0f} BDT")
-                m3.metric("🚨 টোটাল মার্কেট ডিউ", f"{total_due:,.0f} BDT")
+                st.markdown(f"### 🚀 {progress_pct*100:.1f}% অর্জিত")
 
     # ==========================================
-    # ৭. লাইভ প্রফিট ও রিপোর্ট হাব (Admin/Manager Only - ১০০% ইন-অ্যাপ লাইভ)
+    # ৯. এমপ্লয়ি ডিরেক্টরি হাব (ছবি, হোয়াটসঅ্যাপ, বায়ো এবং স্কিল সহ)
     # ==========================================
-    elif st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব":
-        st.title("📉 ইন-অ্যাপ লাইভ মান্থলি ও ইয়ারলি ফাইন্যান্সিয়াল রিপোর্ট")
+    elif st.session_state.current_navigation == "👥 এমপ্লয়ি ডিরেক্টরি হাব":
+        st.title("👥 এজেন্সির অফিশিয়াল মেম্বার ডিরেক্টরি")
+        st.write("মালিক, অফিসার থেকে শুরু করে ইন্টার্নি—সবার লাইভ বায়ো-ডাটা প্রোফাইল কার্ড")
         
-        if df_orders.empty:
-            st.info("কোনো অর্ডার ডাটা উপলব্ধ নেই।")
-        else:
-            df_orders["net_profit"] = df_orders["total_price"] - (df_orders["editor_cost"] + df_orders["operation_cost"])
-            
-            # ডাটাবেস থেকে ডাইনামিক মাস ফিল্টারিং
-            month_list = sorted(df_orders["month_tag"].unique(), reverse=True)
-            selected_month = st.selectbox("📅 কোন মাসের লাইভ রিপোর্ট দেখতে চান?", month_list)
-            
-            filtered_df = df_orders[df_orders["month_tag"] == selected_month]
-            
-            st.markdown(f"### 📊 `{selected_month}` মাসের ১০০% লাইভ পারফরম্যান্স শীট")
-            
-            c_s1, c_s2, c_s3 = st.columns(3)
-            c_s1.metric("ঐ মাসের মোট সেলস", f"{filtered_df['total_price'].sum():,.0f} BDT")
-            c_s2.metric("ঐ মাসের নীট প্রফিট", f"{filtered_df['net_profit'].sum():,.0f} BDT")
-            c_s3.metric("ঐ মাসের মোট খরচ", f"{(filtered_df['editor_cost'].sum() + filtered_df['operation_cost'].sum()):,.0f} BDT")
-            
-            st.markdown("#### 📋 লাইভ ডাটা ম্যাট্রিক্স (গোঁজামিল বিহীন)")
-            # প্রতি লাইনে সুনির্দিষ্ট এডিটরের নাম ও সেকশন থাকবেই
-            st.dataframe(filtered_df[["date", "client_name", "section", "service_name", "total_price", "due_amount", "editor_name", "editor_cost", "net_profit"]], use_container_width=True)
-            
-            fig = px.bar(filtered_df, x="client_name", y="net_profit", color="editor_name", title="ক্লায়েন্ট ভিত্তিক প্রফিট মার্জিন এবং দায়িত্বপ্রাপ্ত এডিটর")
-            st.plotly_chart(fig, use_container_width=True)
+        conn = get_db_connection()
+        df_dir = pd.read_sql_query("SELECT fullname, role, whatsapp, bio, skills, is_officer_verified, profile_pic FROM users", conn)
+        conn.close()
+        
+        # গ্রিড আকারে সাজানো ৩টি কলামে
+        dir_cols = st.columns(3)
+        for idx, row in df_dir.iterrows():
+            col_target = dir_cols[idx % 3]
+            with col_target:
+                st.markdown("<div class='profile-card'>", unsafe_allow_html=True)
+                if row["profile_pic"]:
+                    st.image(io.BytesIO(row["profile_pic"]), width=120)
+                else:
+                    st.markdown("<h3>👤</h3>", unsafe_allow_html=True)
+                
+                st.markdown(f"<h4>{row['fullname']}</h4>", unsafe_allow_html=True)
+                st.markdown(f"🧬 পদবি: **{row['role']}**", unsafe_allow_html=True)
+                
+                # অফিসার ভেরিফিকেশন ও স্পেশাল ব্যাজ শো
+                if row['is_officer_verified'] or row['role'] in ['Chairman', 'Admin']:
+                    st.markdown("<span class='badge-officer'>🔒 Verified Officer</span>", unsafe_allow_html=True)
+                
+                st.write(f"💬 WhatsApp: [{row['whatsapp']}](https://wa.me/{row['whatsapp']})")
+                st.write(f"📝 Bio: *{row['bio']}*")
+                st.write(f"⚡ Skills/Expertise: `{row['skills']}`")
+                st.markdown("</div>", unsafe_allow_html=True)
 
     # ==========================================
-    # ৮. নতুন অর্ডার এন্ট্রি পেজ (গোঁজামিল রোধে ফিক্সড এডিটর নাম আবশ্যিক)
+    # ১০. টু-ওয়ে লাইভ চ্যাট রুম (পাবলিক এবং প্রাইভেট)
+    # ==========================================
+    elif st.session_state.current_navigation == "💬 লাইভ চ্যাট রুম":
+        st.title("💬 Vivid Live প্রিমিয়াম চ্যাট হাব")
+        
+        chat_mode = st.radio("চ্যাট মুড সিলেক্ট করুন:", ["Global Public Wall (সবার জন্য)", "Private 1:1 DM (ব্যক্তিগত ইনবক্স)"])
+        
+        if chat_mode == "Global Public Wall (সবার জন্য)":
+            st.subheader("🌐 গ্লোবাল চ্যাট ওয়াল")
+            st.markdown("<div style='background-color: #0b141a; padding: 20px; border-radius: 12px; height: 300px; overflow-y: scroll;'>", unsafe_allow_html=True)
+            for chat in st.session_state.global_chats:
+                if chat["type"] == "public":
+                    st.markdown(f"<div class='global-chat-bubble'><b>{chat['sender_name']} ({chat['sender_role']}):</b> {chat['msg']} <br><small style='font-size:9px;color:#8696a0;'>{chat['time']}</small></div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            with st.form("pub_form", clear_on_submit=True):
+                msg_txt = st.text_input("পাবলিক মেসেজ লিখুন...")
+                if st.form_submit_button("সেন্ড করুন ✈️"):
+                    if msg_txt:
+                        st.session_state.global_chats.append({
+                            "sender": current_user, "sender_name": my_meta["fullname"], "sender_role": user_role,
+                            "receiver": "all", "msg": msg_txt, "time": datetime.now().strftime("%I:%M %p"), "type": "public"
+                        })
+                        st.rerun()
+                        
+        else:
+            st.subheader("🔒 সিকিউরড প্রাইভেট ইনবক্স")
+            all_peers = list(USER_DB.keys())
+            if current_user in all_peers:
+                all_peers.remove(current_user)
+                
+            selected_peer = st.selectbox("👤 কার সাথে সিক্রেট চ্যাট করবেন?", all_peers, format_func=lambda x: f"{USER_DB[x]['fullname']} ({USER_DB[x]['role']})")
+            
+            st.markdown("<div style='background-color: #0b141a; padding: 20px; border-radius: 12px; height: 300px; overflow-y: scroll;'>", unsafe_allow_html=True)
+            for chat in st.session_state.global_chats:
+                if chat["type"] == "private":
+                    if chat["sender"] == current_user and chat["receiver"] == selected_peer:
+                        st.markdown(f"<div class='chat-bubble-user'><b>You:</b> {chat['msg']}<br><small style='font-size:9px;color:#aebac1;'>{chat['time']}</small></div>", unsafe_allow_html=True)
+                    elif chat["sender"] == selected_peer and chat["receiver"] == current_user:
+                        st.markdown(f"<div class='chat-bubble-other'><b>{USER_DB[selected_peer]['fullname']}:</b> {chat['msg']}<br><small style='font-size:9px;color:#8696a0;'>{chat['time']}</small></div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            with st.form("priv_form", clear_on_submit=True):
+                msg_p_txt = st.text_input("ইনবক্স মেসেজ লিখুন...")
+                if st.form_submit_button("প্রাইভেট সেন্ড 🔐"):
+                    if msg_p_txt:
+                        st.session_state.global_chats.append({
+                            "sender": current_user, "receiver": selected_peer, "msg": msg_p_txt, "time": datetime.now().strftime("%I:%M %p"), "type": "private"
+                        })
+                        trigger_live_notification(f"💬 {my_meta['fullname']} আপনাকে একটি পার্সোনাল মেসেজ পাঠিয়েছেন!", "💬 লাইভ চ্যাট রুম")
+                        st.rerun()
+
+    # ==========================================
+    # ১১. নতুন অর্ডার এন্ট্রি
     # ==========================================
     elif st.session_state.current_navigation == "✍️ নতুন অর্ডার এন্ট্রি":
         st.title("📝 নতুন ক্লায়েন্ট ডাটা ও অর্ডার এন্ট্রি")
         
         editor_list = [u for u in USER_DB if USER_DB[u]["role"] == "Editor"]
         
-        if not editor_list:
-            st.error("🚨 ডাটাবেসে কোনো এডিটর অ্যাকাউন্ট খুঁজে পাওয়া যায়নি! আগে 'নতুন ইউজার তৈরি' সেকশন থেকে এডিটর অ্যাকাউন্ট বানান, নয়তো গোঁজামিল লাগবে।")
-        else:
-            with st.form("order_form_ultra_v4", clear_on_submit=True):
-                col1, col2 = st.columns(2)
-                with col1:
-                    cl_name = st.text_input("ক্লায়েন্টের নাম *")
-                    cl_phone = st.text_input("মোবাইল নাম্বার *")
-                    sec = st.selectbox("কোন সেকশনের কাজ? *", ["Production", "Studio"])
-                    srv = st.text_input("সার্ভিস/প্যাকেজ নাম *")
-                with col2:
-                    t_p = st.number_input("টোটাল ডিল প্রাইস (BDT) *", min_value=0)
-                    a_p = st.number_input("এডভান্স রিসিভড (BDT)", min_value=0)
-                    ed_n = st.selectbox("দায়িত্বরত এডিটর সিলেক্ট করুন (বাধ্যতামূলক) *", editor_list)
-                    ed_c = st.number_input("এডিটরের ফিক্সড বিল/কস্ট (BDT) *", min_value=0)
-                    op_c = st.number_input("অন্যান্য অপারেশন কস্ট (BDT)", min_value=0)
-                    
-                if st.form_submit_button("সার্ভারে লাইভ এন্ট্রি দিন 🚀"):
-                    if cl_name and cl_phone and srv and ed_n:
-                        conn = sqlite3.connect(DB_FILE)
-                        cursor = conn.cursor()
-                        cursor.execute('''INSERT INTO orders VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                                       (datetime.now().strftime("%Y-%m-%d"), cl_name, cl_phone, sec, srv, t_p, a_p, t_p-a_p, ed_n, ed_c, op_c, current_month_tag))
-                        conn.commit()
-                        conn.close()
-                        trigger_live_notification(f"✍️ নতুন অর্ডার অ্যাড হয়েছে: {cl_name} (দায়িত্বে: {ed_n})", "📊 লাইভ ড্যাশবোর্ড")
-                        st.success("🎉 অর্ডার ডাটা এবং এডিটর অ্যাসাইনমেন্ট সম্পূর্ণ লাইভ সেভ হয়েছে!")
-                        st.rerun()
-                    else:
-                        st.error("অনুগ্রহ করে সব স্টার (*) চিহ্নিত ঘরগুলো পূরণ করুন!")
+        with st.form("order_form_v5", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                cl_name = st.text_input("ক্লায়েন্টের নাম *")
+                cl_phone = st.text_input("হোয়াটসঅ্যাপ/মোবাইল নাম্বার *")
+                srv = st.text_input("সার্ভিস/প্যাকেজ নাম *")
+            with col2:
+                t_p = st.number_input("টোটাল ডিল প্রাইস (BDT) *", min_value=0)
+                a_p = st.number_input("এডভান্স রিসিভড (BDT)", min_value=0)
+                ed_n = st.selectbox("দায়িত্বরত এডিটর সিলেক্ট করুন *", editor_list if editor_list else ["No Editor Found"])
+                ed_c = st.number_input("এডিটরের ফিক্সড বিল/কস্ট (BDT) *", min_value=0)
+                op_c = st.number_input("অন্যান্য অপারেশন কস্ট (BDT)", min_value=0)
+                
+            if st.form_submit_button("সার্ভারে লাইভ এন্ট্রি দিন 🚀"):
+                if cl_name and cl_phone and ed_n != "No Editor Found":
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute('''INSERT INTO orders VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                                   (datetime.now().strftime("%Y-%m-%d"), cl_name, cl_phone, srv, t_p, a_p, t_p-a_p, ed_n, ed_c, op_c, current_month_tag))
+                    conn.commit()
+                    conn.close()
+                    trigger_live_notification(f"✍️ নতুন অর্ডার এন্ট্রি: {cl_name} (এডিটর: {ed_n})", "📊 লাইভ ড্যাশবোর্ড")
+                    st.success("🎉 অর্ডার ডাটা এবং এডিটর অ্যাসাইনমেন্ট সম্পূর্ণ লাইভ সেভ হয়েছে!")
+                    st.rerun()
 
     # ==========================================
-    # ৯. টাস্ক ডিস্ট্রিবিউটর (Admin/Manager ONLY)
+    # ১২. টাস্ক ডিস্ট্রিবিউটর
     # ==========================================
     elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর":
         st.title("🎯 এডিটরদের কাজ অ্যাসাইনমেন্ট ও লাইভ পেমেন্ট ট্র্যাকার")
         editor_list = [u for u in USER_DB if USER_DB[u]["role"] == "Editor"]
         
-        with St.form("task_dist_form_v4", clear_on_submit=True):
+        with st.form("task_dist_v5", clear_on_submit=True):
             cx1, cx2 = st.columns(2)
             with cx1:
                 t_cl = st.text_input("ক্লায়েন্টের নাম")
-                t_ed = st.selectbox("কোন এডিটরকে কাজ দেবেন?", editor_list)
+                t_ed = st.selectbox("কোন এডিটরকে কাজ দেবেন?", editor_list if editor_list else ["No Editor"])
                 t_dt = st.text_area("কাজের বিবরণ ও ইন্সট্রাকশন")
             with cx2:
                 t_pay = st.number_input("এই কাজের জন্য এডিটর বিল (BDT)", min_value=0)
                 
             if st.form_submit_button("📡 এডিটর প্যানেলে লাইভ পুশ দিন"):
-                if t_cl and t_ed:
-                    conn = sqlite3.connect(DB_FILE)
+                if t_cl and t_ed != "No Editor":
+                    conn = get_db_connection()
                     cursor = conn.cursor()
                     assign_timestamp = datetime.now().strftime("%Y-%m-%d %I:%M %p")
                     cursor.execute('INSERT INTO tasks VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                                    (random.randint(10000, 99999), t_cl, t_ed, t_dt, assign_timestamp, "Not Started Yet", "Not Submitted Yet", "Pending", "No Link", "No Revision Note", t_pay))
                     conn.commit()
                     conn.close()
-                    trigger_live_notification(f"🎬 এডিটর {t_ed} এর জন্য নতুন প্রজেক্ট পুশ করা হয়েছে!", "🎬 আমার এডিটিং প্যানেল")
+                    trigger_live_notification(f"🎬 আপনার জন্য নতুন প্রজেক্ট পুশ করা হয়েছে!", "🎬 আমার এডিটিং প্যানেল")
                     st.success("🔥 কাজ সফলভাবে এডিটরের কাছে লাইভ পাঠিয়ে দেওয়া হয়েছে!")
                     st.rerun()
 
     # ==========================================
-    # ১০. এডিটর লাইভ ওয়ার্কস্টেশন Panel (Editor & Admin Control)
+    # ১৩. এডিটর লাইভ ওয়ার্কস্টেশন Panel
     # ==========================================
     elif st.session_state.current_navigation == "🎬 আমার এডিটিং প্যানেল":
         st.title("🎬 Editor Live Workstation")
+        my_tasks = df_tasks[df_tasks["editor"] == current_user]
         
-        if user_role == "Editor":
-            st.subheader(f"স্বাগতম {current_user.upper()}, আপনার লাইভ প্রজেক্টসমূহ:")
-            my_tasks = df_tasks[df_tasks["editor"] == current_user]
-            
-            if my_tasks.empty:
-                st.info("আপনার কাছে এই মুহূর্তে কোনো কাজ অ্যাসাইন করা নেই।")
-            else:
-                for index, row in my_tasks.iterrows():
-                    with st.expander(f"📌 ক্লায়েন্ট: {row['client']} | 🚦 স্ট্যাটাস: {row['status']}"):
-                        st.write(f"**📝 কাজের বিবরণ:** {row['task_detail']}")
-                        st.write(f"⏱️ **কাজ শুরুর সময়:** {row['start_time']}")
-                        st.error(f"🔧 **অ্যাডমিনের রিভিশন নোট:** {row['revision_note']}")
-                        
-                        col_b1, col_b2 = st.columns(2)
-                        if row['status'] == "Pending":
-                            if col_b1.button("🎬 কাজ শুরু করুন (Start Work)", key=f"strt_{index}"):
-                                conn = sqlite3.connect(DB_FILE)
+        if my_tasks.empty:
+            st.info("আপনার কাছে এই মুহূর্তে কোনো কাজ অ্যাসাইন করা নেই।")
+        else:
+            for index, row in my_tasks.iterrows():
+                with st.expander(f"📌 ক্লায়েন্ট: {row['client']} | 🚦 স্ট্যাটাস: {row['status']}"):
+                    st.write(f"**📝 কাজের বিবরণ:** {row['task_detail']}")
+                    st.write(f"⏱️ **কাজ শুরুর সময়:** {row['start_time']}")
+                    st.error(f"🔧 **রিভিশন নোট:** {row['revision_note']}")
+                    
+                    col_b1, col_b2 = st.columns(2)
+                    if row['status'] == "Pending":
+                        if col_b1.button("🎬 কাজ শুরু করুন", key=f"strt_{index}"):
+                            conn = get_db_connection()
+                            cursor = conn.cursor()
+                            cursor.execute('UPDATE tasks SET status="Started", start_time=? WHERE id=?', (datetime.now().strftime("%I:%M %p"), row['id']))
+                            conn.commit()
+                            conn.close()
+                            st.rerun()
+                            
+                    if row['status'] in ["Started", "Revision"]:
+                        drive_link = st.text_input("ড্রাইভ লিংক দিন:", value=row['final_link'], key=f"lnk_{index}")
+                        if col_b2.button("🚀 কাজ জমা দিন", key=f"sub_{index}"):
+                            if drive_link and drive_link != "No Link":
+                                conn = get_db_connection()
                                 cursor = conn.cursor()
-                                cursor.execute('UPDATE tasks SET status="Started", start_time=? WHERE id=?', (datetime.now().strftime("%I:%M %p"), row['id']))
+                                cursor.execute('UPDATE tasks SET status="Submitted", final_link=?, submit_time=? WHERE id=?', (drive_link, datetime.now().strftime("%I:%M %p"), row['id']))
                                 conn.commit()
                                 conn.close()
-                                trigger_live_notification(f"⚡ এডিটর {current_user} কাজ শুরু করেছেন!", "📊 লাইভ ড্যাশবোর্ড")
+                                trigger_live_notification(f"🟢 এডিটর কাজ জমা দিয়েছেন!", "🎯 টাস্ক ডিস্ট্রিবিউটর")
                                 st.rerun()
-                                
-                        if row['status'] in ["Started", "Revision"]:
-                            drive_link = st.text_input("ফাইনাল কাজের ড্রাইভ লিংক দিন:", value=row['final_link'], key=f"lnk_{index}")
-                            if col_b2.button("🚀 কাজ জমা দিন (Submit Work)", key=f"sub_{index}"):
-                                if drive_link and drive_link != "No Link":
-                                    conn = sqlite3.connect(DB_FILE)
-                                    cursor = conn.cursor()
-                                    cursor.execute('UPDATE tasks SET status="Submitted", final_link=?, submit_time=? WHERE id=?', (drive_link, datetime.now().strftime("%I:%M %p"), row['id']))
-                                    conn.commit()
-                                    conn.close()
-                                    trigger_live_notification(f"🟢 এডিটর {current_user} কাজ জমা দিয়েছেন!", "📊 লাইভ ড্যাশবোর্ড")
-                                    st.rerun()
-                                else:
-                                    st.error("ড্রাইভ লিংক দিন!")
-
-        if user_role in ["Admin", "Manager"]:
-            st.subheader("🛠️ সাবমিটেড কাজ চেক ও রিভিশন কন্ট্রোল (Admin/Manager View)")
-            submitted_tasks = df_tasks[df_tasks["status"] == "Submitted"]
-            if submitted_tasks.empty:
-                st.info("এই মুহূর্তে কোনো কাজ রিভিউ এর জন্য পেন্ডিং নেই।")
-            else:
-                for index, row in submitted_tasks.iterrows():
-                    with st.container():
-                        st.info(f"🎯 প্রজেক্ট: {row['client']} | এডিটর: {row['editor']} | লিংক: {row['final_link']}")
-                        rev_text = st.text_area("রিভিশন দিতে চাইলে নোট লিখুন:", key=f"rev_text_{index}")
-                        c_btn1, c_btn2 = st.columns(2)
-                        if c_btn1.button("✅ কাজ ওকে (Mark Completed)", key=f"app_{index}"):
-                            conn = sqlite3.connect(DB_FILE)
-                            cursor = conn.cursor()
-                            cursor.execute('UPDATE tasks SET status="Completed" WHERE id=?', (row['id'],))
-                            conn.commit()
-                            conn.close()
-                            st.success("প্রজেক্ট কমপ্লিট করা হয়েছে!")
-                            st.rerun()
-                        if c_btn2.button("❌ রিভিশন পাঠান (Send to Revision)", key=f"rev_btn_{index}"):
-                            conn = sqlite3.connect(DB_FILE)
-                            cursor = conn.cursor()
-                            cursor.execute('UPDATE tasks SET status="Revision", revision_note=? WHERE id=?', (rev_text if rev_text else "আবার চেক করুন", row['id']))
-                            conn.commit()
-                            conn.close()
-                            trigger_live_notification(f"🔧 এডিটর {row['editor']} এর কাজে রিভিশন দেওয়া হয়েছে!", "🎬 আমার এডিটিং প্যানেল")
-                            st.rerun()
 
     # ==========================================
-    # ১১. প্রিমিয়াম চ্যাট হাব (১:১ লাইভ চ্যাট)
+    # ১৪. লাইভ প্রফিট ও রিপোর্ট হাব (🔒 শুধুমাত্র ভেরিফাইড অফিসার লক যাদের ট্রু)
     # ==========================================
-    elif st.session_state.current_navigation == "💬 প্রিমিয়াম চ্যাট হাব":
-        st.title("💬 Vivid Live 1:1 প্রিমিয়াম চ্যাট হাব")
+    elif st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব":
+        st.title("📉 ইন-ап লাইভ ফাইন্যান্সিয়াল ও নেট প্রফিট রিপোর্ট")
         
-        all_members = list(USER_DB.keys())
-        if current_user in all_members:
-            all_members.remove(current_user)
+        if df_orders.empty:
+            st.info("কোনো ফাইন্যান্সিয়াল ডেটা উপলব্ধ নেই।")
+        else:
+            df_orders["net_profit"] = df_orders["total_price"] - (df_orders["editor_cost"] + df_orders["operation_cost"])
+            month_list = sorted(df_orders["month_tag"].unique(), reverse=True)
+            selected_month = st.selectbox("📅 মাস সিলেক্ট করুন:", month_list)
             
-        selected_peer = st.selectbox("👤 কার সাথে পার্সোনাল চ্যাট করবেন?", all_members)
+            filtered_df = df_orders[df_orders["month_tag"] == selected_month]
+            
+            c_s1, c_s2, c_s3 = st.columns(3)
+            c_s1.metric("ঐ মাসের মোট সেলস", f"{filtered_df['total_price'].sum():,.0f} BDT")
+            c_s2.metric("ঐ মাসের নীট প্রফিট", f"{filtered_df['net_profit'].sum():,.0f} BDT")
+            c_s3.metric("ঐ মাসের মোট খরচ", f"{(filtered_df['editor_cost'].sum() + filtered_df['operation_cost'].sum()):,.0f} BDT")
+            
+            st.dataframe(filtered_df, use_container_width=True)
+
+    # ==========================================
+    # ১৫. অ্যাডমিন সিকিউরিটি, ইউজার কন্ট্রোল ও নোটিশ জেনারেটর (Admin/Chairman Only)
+    # ==========================================
+    elif st.session_state.current_navigation == "👮 অ্যাডমিন সিকিউরিটি ও ইউজার কন্ট্রোল":
+        st.title("👮 সিস্টেম সিকিউরিটি, মেম্বার ভেরিফিকেশন ও ক্রিয়েশন প্যানেল")
         
-        st.markdown("<div style='background-color: #0b141a; padding: 20px; border-radius: 12px; border: 1px solid #00a884; height: 350px; overflow-y: scroll;'>", unsafe_allow_html=True)
-        for chat in st.session_state.global_chats:
-            if chat["sender"] == current_user and chat["receiver"] == selected_peer:
-                st.markdown(f"<div class='chat-bubble-user'><b>You:</b> {chat['msg']}<br><small style='font-size:9px;color:#aebac1;'>{chat['time']}</small></div>", unsafe_allow_html=True)
-            elif chat["sender"] == selected_peer and chat["receiver"] == current_user:
-                st.markdown(f"<div class='chat-bubble-other'><b>{selected_peer.upper()}:</b> {chat['msg']}<br><small style='font-size:9px;color:#8696a0;'>{chat['time']}</small></div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-        with st.form("chat_form_u4", clear_on_submit=True):
-            msg_i = st.text_input("মেসেজ টাইপ করুন...")
-            if st.form_submit_button("সেন্ড ✈️"):
-                if msg_i:
-                    st.session_state.global_chats.append({
-                        "sender": current_user, "receiver": selected_peer, "msg": msg_i, "time": datetime.now().strftime("%I:%M %p")
-                    })
-                    trigger_live_notification(f"💬 {current_user} আপনাকে মেসেজ পাঠিয়েছেন!", "💬 প্রিমিয়াম চ্যাট হাব")
+        # নোটিশ বোর্ড কন্ট্রোলার
+        st.subheader("📢 গ্লোবাল নোটিশ বোর্ড আপডেট করুন")
+        with st.form("notice_form", clear_on_submit=True):
+            n_title = st.text_input("নোটিশের টাইটেল")
+            n_content = st.text_area("নোটিশের মূল বক্তব্য")
+            if st.form_submit_button("লাউডস্পিকারে অ্যানাউন্স করুন 🚀"):
+                if n_title and n_content:
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("INSERT INTO notices VALUES (NULL, ?, ?, ?, ?, ?)",
+                                   (my_meta["fullname"], user_role, n_title, n_content, datetime.now().strftime("%Y-%m-%d %I:%M %p")))
+                    conn.commit()
+                    conn.close()
+                    st.success("নোটিশ লাইভ পুশ করা হয়েছে!")
                     st.rerun()
-
-    # ==========================================
-    # ১২. নতুন ইউজার তৈরি (Admin Only - সেকশন ট্যাগ সহ)
-    # ==========================================
-    elif st.session_state.current_navigation == "➕ নতুন ইউজার তৈরি (Create User)":
-        st.title("➕ নতুন টিম মেম্বার অ্যাকাউন্ট জেনারেটর")
-        with st.form("cre_user_v4", clear_on_submit=True):
-            n_u = st.text_input("ইউজার আইডি (Unique Username) *")
-            n_p = st.text_input("পাসওয়ার্ড *")
-            n_r = st.selectbox("রোল/পারমিশন লেভেল", ["Admin", "Manager", "Moderator", "Editor"])
-            n_s = st.selectbox("সেকশন/বিভাগ", ["Production", "Studio", "Management"])
+                    
+        st.markdown("---")
+        
+        # ম্যানুয়াল 'অফিসার ভেরিফিকেশন লক' মডিউল
+        st.subheader("🔒 অফিসার ফাইন্যান্সিয়াল এক্সেস কন্ট্রোল (Manual Verification)")
+        conn = get_db_connection()
+        df_users_manage = pd.read_sql_query("SELECT username, fullname, role, is_officer_verified FROM users", conn)
+        conn.close()
+        
+        for idx, u_row in df_users_manage.iterrows():
+            col_v1, col_v2 = st.columns([4, 2])
+            status_text = "✅ Approved Verified Officer" if u_row["is_officer_verified"] else "❌ No Financial Access"
+            col_v1.write(f"👤 **{u_row['fullname']}** (`{u_row['username']}`) — পদবি: `{u_row['role']}` | বর্তমান অবস্থা: **{status_text}**")
             
-            if st.form_submit_button("সার্ভারে অ্যাকাউন্ট একটিভ করুন"):
-                if n_u and n_p:
+            if u_row["is_officer_verified"]:
+                if col_v2.button("লক করুন (Revoke Access)", key=f"rev_{idx}"):
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE users SET is_officer_verified=0 WHERE username=?", (u_row["username"],))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
+            else:
+                if col_v2.button("ভেরিফাই করুন (Grant Access)", key=f"grant_{idx}"):
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE users SET is_officer_verified=1 WHERE username=?", (u_row["username"],))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
+                    
+        st.markdown("---")
+        
+        # অ্যাডভান্সড ইউজার অ্যাকাউন্ট জেনারেটর
+        st.subheader("➕ নতুন মেম্বার ও প্রোফাইল বায়ো-ডাটা তৈরি করুন")
+        with st.form("cre_user_v5_form", clear_on_submit=True):
+            cx_1, cx_2 = st.columns(2)
+            with cx_1:
+                n_u = st.text_input("ইউজার আইডি (Unique Username) *")
+                n_p = st.text_input("পাসওয়ার্ড *")
+                n_f = st.text_input("এমপ্লয়ির পুরো নাম (Full Name) *")
+                n_r = st.selectbox("অফিশিয়াল পদবি/রোল *", ['Chairman', 'CEO', 'CTO', 'Co-Founder', 'Operation Officer', 'Manager', 'Moderator', 'Editor', 'Internee'])
+            with cx_2:
+                n_w = st.text_input("হোয়াটসঅ্যাপ নাম্বার (Country Code সহ) *")
+                n_b = st.text_area("বায়ো/পরিচিতি")
+                n_sk = st.text_input("কাজের স্পেশালিটি/স্কিল (যেমন: Premiere Pro, 3D, Motion)")
+                n_pic = st.file_uploader("প্রোফাইল পিকচার আপলোড (.jpg/.png)", type=["jpg", "png"])
+                
+            if st.form_submit_button("সার্ভারে মেম্বার একটিভ করুন 🚀"):
+                if n_u and n_p and n_f and n_w:
+                    pic_blob = None
+                    if n_pic:
+                        pic_blob = n_pic.read()
+                        
                     try:
-                        conn = sqlite3.connect(DB_FILE)
+                        conn = get_db_connection()
                         cursor = conn.cursor()
-                        cursor.execute('INSERT INTO users VALUES (?, ?, ?, ?)', (n_u, n_p, n_r, n_s))
+                        cursor.execute('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)',
+                                       (n_u, n_p, n_f, n_r, n_w, n_b, n_sk, pic_blob))
                         conn.commit()
                         conn.close()
-                        st.success(f"🎉 নতুন অ্যাকাউন্ট তৈরি হয়েছে: {n_u} ({n_s} সেকশন)")
+                        st.success(f"🎉 {n_f} এর অ্যাকাউন্ট সফলভাবে প্রোফাইলসহ লাইভ ডাটাবেসে সেভ হয়েছে!")
                         st.rerun()
-                    except:
-                        st.error("এই ইউজারনেম অলরেডি আছে!")
+                    except Exception as e:
+                        st.error(f"ইউজার তৈরি করা যায়নি! হয়তো এই আইডি আগেই আছে। এরর: {e}")
+
+    # ==========================================
+    # ১৬. সিক্রেট ইনবক্স স্পাইডার (🕵️ Admin/Chairman Only - Spy Tool)
+    # ==========================================
+    elif st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)":
+        st.title("🕵️ সিক্রেট ইনবক্স মনিটরিং ড্যাশবোর্ড (Super Admin Only)")
+        st.warning("🔒 এই প্যানেলটি শুধুমাত্র চেয়ারম্যান ও মেইন অ্যাডমিন ছাড়া কেউ দেখতে পারছে না। এর মাধ্যমে ভেতরের ইন্টারনাল চ্যাট মনিটর করা যায়।")
+        
+        all_user_keys = list(USER_DB.keys())
+        
+        col_spy1, col_spy2 = st.columns(2)
+        spy_target_1 = col_spy1.selectbox("প্রথম মেম্বার সিলেক্ট করুন:", all_user_keys, key="spy1", format_func=lambda x: f"{USER_DB[x]['fullname']} ({USER_DB[x]['role']})")
+        spy_target_2 = col_spy2.selectbox("দ্বিতীয় মেম্বার সিলেক্ট করুন:", all_user_keys, key="spy2", format_func=lambda x: f"{USER_DB[x]['fullname']} ({USER_DB[x]['role']})")
+        
+        st.markdown(f"#### 🔍 `{USER_DB[spy_target_1]['fullname']}` এবং `{USER_DB[spy_target_2]['fullname']}` এর মধ্যকার গোপন ইনবক্স হিস্ট্রি:")
+        
+        st.markdown("<div style='background-color: #1a0f0f; padding: 20px; border-radius: 12px; border: 1px solid #e53e3e; height: 350px; overflow-y: scroll;'>", unsafe_allow_html=True)
+        found_chats = False
+        for chat in st.session_state.global_chats:
+            if chat["type"] == "private":
+                if (chat["sender"] == spy_target_1 and chat["receiver"] == spy_target_2) or (chat["sender"] == spy_target_2 and chat["receiver"] == spy_target_1):
+                    found_chats = True
+                    sender_label = USER_DB[chat["sender"]]["fullname"]
+                    st.markdown(f"<div style='color: #f7fafc; padding: 5px 0;'><b>{sender_label}:</b> {chat['msg']} <span style='color:#a0aec0; font-size:10px;'>[{chat['time']}]</span></div>", unsafe_allow_html=True)
+        
+        if not found_chats:
+            st.info("এই দুই মেম্বারের মধ্যে এখনো কোনো গোপন চ্যাট সংঘটিত হয়নি।")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ==========================================
+    # ১৭. ফুটার ব্র্যান্ডিং (Developed by REYADH)
+    # ==========================================
+    st.markdown("---")
+    st.markdown("<p style='text-align: center; color: #718096;'>⚡ System Developed & Maintained by <b style='color:#00e676;'>REYADH</b> | Vivid Core Command Center v5.0 (2026) ⚡</p>", unsafe_allow_html=True)
