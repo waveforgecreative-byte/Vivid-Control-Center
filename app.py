@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import sqlite3
-import time
 import io
 
 # ==========================================
@@ -34,18 +33,6 @@ st.markdown("""
         border: 2px solid #00f2fe !important;
     }
     
-    /* সাইডবার অনলাইন ট্র্যাকার গ্রিড */
-    .online-user-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 12px;
-        background: rgba(255, 255, 255, 0.03);
-        padding: 8px;
-        border-radius: 8px;
-        border: 1px solid rgba(0, 242, 254, 0.1);
-    }
-    
     /* কাউন্টার উইজেট */
     .counter-box { text-align: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; }
     .counter-title { font-size: 12px; color: #94a3b8; font-weight: 500; }
@@ -56,7 +43,6 @@ st.markdown("""
     .global-chat-bubble { background-color: #1e293b; border-left: 5px solid #38bdf8; padding: 12px; border-radius: 6px; color: #f1f5f9; margin: 4px 0; }
     
     .active-dot { height: 10px; width: 10px; background-color: #00e676; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #00e676; }
-    .badge-verified { background: linear-gradient(90deg, #00f2fe, #4facfe); color: #070a14; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; display: inline-block; box-shadow: 0 0 10px rgba(0, 242, 254, 0.4); }
     .card-verified { background: linear-gradient(90deg, #10b981, #059669); color: white; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; display: inline-block; margin-top: 5px; }
     
     /* গোল ট্র্যাকিং ব্যানার */
@@ -69,7 +55,7 @@ DB_FILE = "vivid_studio_max_v6.db"
 DEFAULT_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
 
 # ==========================================
-# ২. ডাটাবেস কানেকশন ও থ্রেড-সেফ আর্কিটেকচার
+# ২. ডাটাবেস কানেকশন ও কোর আর্কিটেকচার
 # ==========================================
 def get_db_connection():
     return sqlite3.connect(DB_FILE, timeout=30, check_same_thread=False)
@@ -92,13 +78,12 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, sender_name TEXT, sender_role TEXT, msg TEXT, timestamp TEXT)''')
     
-    # KeyError ও কলাম মিসিং বাগ প্রোটেকশন নোড
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_seen TEXT DEFAULT ''")
     except sqlite3.OperationalError:
         pass
 
-    # [FIX] Requirement অনযায়ী dynamic branding: "Developed by Md Reyadh" & "CTO & Lead Developer"
+    # CTO Reyadh Profile Lock Node
     cursor.execute("SELECT COUNT(*) FROM users WHERE username='reyadh'")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""INSERT INTO users (username, password, fullname, role, whatsapp, bio, skills, is_officer_verified, last_seen) VALUES (
@@ -129,31 +114,69 @@ def update_user_heartbeat(username):
     except Exception:
         pass
 
-# সেশন হ্যান্ডলিং
+# সেশন স্টেট ইনিশিয়ালাইজেশন
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user = ""
 if "current_navigation" not in st.session_state:
     st.session_state.current_navigation = "📊 লাইভ ড্যাশবোর্ড"
 
-# --- লগইন মডিউল ---
+# ==========================================
+# ৩. লগইন ও নতুন আইডি ক্রিয়েশন (Sign Up) হাব
+# ==========================================
 if not st.session_state.logged_in:
     st.title("🌌 Vivid Core IT Ultra Command Center")
-    u_id = st.text_input("ইউজার আইডি (Username)")
-    u_pass = st.text_input("এক্সেস কী (Password)", type="password")
     
-    if st.button("সার্ভার নোড এথেন্টিকেশন 🔐", use_container_width=True):
-        conn = get_db_connection()
-        user_data = pd.read_sql_query("SELECT * FROM users WHERE username=?", conn, params=(u_id,))
-        conn.close()
+    auth_tabs = st.tabs(["🔐 সার্ভার লগইন", "📝 নতুন আইডি তৈরি করুন (Sign Up)"])
+    
+    with auth_tabs[0]:
+        u_id = st.text_input("ইউজার আইডি (Username)", key="login_uid")
+        u_pass = st.text_input("এক্সেস কী (Password)", type="password", key="login_pass")
         
-        if not user_data.empty and user_data.iloc[0]["password"] == u_pass:
-            st.session_state.logged_in = True
-            st.session_state.user = u_id
-            update_user_heartbeat(u_id)
-            st.rerun()
-        else:
-            st.error("ভুল ইউজার আইডি বা পাসওয়ার্ড!")
+        if st.button("সার্ভার নোড এথেন্টিকেশন 🔐", use_container_width=True):
+            conn = get_db_connection()
+            user_data = pd.read_sql_query("SELECT * FROM users WHERE username=?", conn, params=(u_id.lower().strip(),))
+            conn.close()
+            
+            if not user_data.empty and user_data.iloc[0]["password"] == u_pass:
+                st.session_state.logged_in = True
+                st.session_state.user = u_id.lower().strip()
+                update_user_heartbeat(u_id.lower().strip())
+                st.rerun()
+            else:
+                st.error("ভুল ইউজার আইডি বা পাসওয়ার্ড! আবার চেষ্টা করুন।")
+                
+    with auth_tabs[1]:
+        with st.form("signup_form", clear_on_submit=True):
+            st.subheader("🛠️ নতুন মেম্বার রেজিস্ট্রেশন গেটওয়ে")
+            new_uid = st.text_input("ইউজার আইডি (Username - ছোট হাতের অক্ষরে, স্পেস ছাড়া):")
+            new_pass = st.text_input("পাসওয়ার্ড (Password):", type="password")
+            new_fullname = st.text_input("পূর্ণ নাম (Full Name):")
+            new_role = st.selectbox("টিম রোল সিলেক্ট করুন:", ["Chairman", "CEO", "CTO & Lead Developer", "Co-Founder", "Operation Officer", "Manager", "Moderator", "Editor", "Internee"])
+            new_whatsapp = st.text_input("হোয়াটসঅ্যাপ নাম্বার:")
+            
+            if st.form_submit_button("নতুন অ্যাকাউন্ট ডাটাবেসে সেভ করুন 💾"):
+                clean_uid = new_uid.lower().strip()
+                if not clean_uid or not new_pass or not new_fullname:
+                    st.error("❌ ইউজার আইডি, পাসওয়ার্ড এবং পূর্ণ নাম অবশ্যই দিতে হবে!")
+                else:
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM users WHERE username=?", (clean_uid,))
+                    if cursor.fetchone()[0] > 0:
+                        st.error("⚠️ এই ইউজার আইডিটি ইতিমধ্যে ব্যবহার করা হয়েছে! অন্য আইডি ট্রাই করুন।")
+                        conn.close()
+                    else:
+                        cursor.execute("""INSERT INTO users (username, password, fullname, role, whatsapp, bio, skills, is_officer_verified, last_seen) 
+                                       VALUES (?, ?, ?, ?, ?, '', '', 0, '')""", 
+                                       (clean_uid, new_pass, new_fullname, new_role, new_whatsapp))
+                        conn.commit()
+                        conn.close()
+                        st.success("🎉 অ্যাকাউন্ট তৈরি সফল হয়েছে! এবার পাশের 'সার্ভার লগইন' ট্যাবে গিয়ে লগইন করুন।")
+
+# ==========================================
+# ৪. মেইন ড্যাশবোর্ড ইন্টারফেস (লগইন সাকসেসড)
+# ==========================================
 else:
     current_user = st.session_state.user
     update_user_heartbeat(current_user)
@@ -173,9 +196,7 @@ else:
     is_editor = user_role.lower() == "editor"
     is_verified = int(my_meta["is_officer_verified"]) == 1
     
-    # ==========================================
-    # ৩. সাইডবার ইন্টারফেস (লাইভ একটিভ ট্র্যাকার নোডস 🛰️)
-    # ==========================================
+    # সাইডবার ইন্টারফেস ও প্রোফাইল নোড
     st.sidebar.markdown("### 🌌 Vivid Core Node")
     if my_meta["profile_pic"]:
         st.sidebar.image(io.BytesIO(my_meta["profile_pic"]), width=90)
@@ -186,20 +207,14 @@ else:
     st.sidebar.write(f"🧬 রোল: `{user_role}`")
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("🛰️ **লাইভ অনলাইন ট্র্যাকার নোডস (৫ মি.)**")
+    st.sidebar.markdown("🛰️ **অনলাইন ট্র্যাকার নোডস (৫ মি.)**")
     
     five_mins_ago = (datetime.now() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
     df_users_all["last_seen"] = df_users_all["last_seen"].fillna("")
     active_users = df_users_all[df_users_all["last_seen"] >= five_mins_ago]
     
     for _, u_row in active_users.iterrows():
-        if u_row['profile_pic']:
-            st.sidebar.image(io.BytesIO(u_row['profile_pic']), width=35)
-        else:
-            st.sidebar.image(DEFAULT_AVATAR, width=35)
-            
         st.sidebar.markdown(f"<span class='active-dot'></span> **{u_row['fullname']}** (`{u_row['role']}`)", unsafe_allow_html=True)
-        st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
     if st.sidebar.button("সার্ভার ডিসকানেক্ট 🚪", use_container_width=True):
         st.session_state.logged_in = False
@@ -207,45 +222,39 @@ else:
 
     current_month_tag = datetime.now().strftime("%Y-%m")
 
-    # ==========================================
-    # 🔒 এডিটর প্যানেল
-    # ==========================================
+    # 🔒 এডিটর স্পেসিফিক প্যানেল
     if is_editor:
         st.title("🛠️ এডিটর ড্যাশবোর্ড ও ওয়ার্ক প্যানেল")
-        st.write(f"স্বাগতম **{my_meta['fullname']}**! নিচে আপনার টাস্ক তালিকা দেওয়া হলো:")
+        st.write(f"স্বাগতম **{my_meta['fullname']}**! আপনার বর্তমান অ্যাসাইনকৃত কাজের তালিকা:")
         
-        @st.fragment(run_every=2)
-        def show_editor_tasks():
-            conn = get_db_connection()
-            my_tasks = pd.read_sql_query("SELECT * FROM tasks WHERE editor=? ORDER BY id DESC", conn, params=(current_user,))
-            conn.close()
-            
-            if my_tasks.empty:
-                st.info("আপনার জন্য বর্তমানে কোনো সক্রিয় কাজ বরাদ্দ নেই।")
-            else:
-                for idx, t_row in my_tasks.iterrows():
-                    with st.expander(f"📌 টাস্ক আইডি: {t_row['id']} | ক্লায়েন্ট: {t_row['client']} | অবস্থা: {t_row['status']}"):
-                        st.markdown(f"💬 **কাজের বিবরণ:** {t_row['task_detail']}")
-                        st.markdown(f"💰 **ফি:** {t_row['editor_payment']} BDT")
-                        if t_row['revision_note']:
-                            st.error(f"⚠️ **রিভিশন নোট:** {t_row['revision_note']}")
+        conn = get_db_connection()
+        my_tasks = pd.read_sql_query("SELECT * FROM tasks WHERE editor=? ORDER BY id DESC", conn, params=(current_user,))
+        conn.close()
+        
+        if my_tasks.empty:
+            st.info("আপনার জন্য বর্তমানে কোনো সক্রিয় কাজ বরাদ্দ নেই।")
+        else:
+            for idx, t_row in my_tasks.iterrows():
+                with st.expander(f"📌 টাস্ক আইডি: {t_row['id']} | ক্লায়েন্ট: {t_row['client']} | অবস্থা: {t_row['status']}"):
+                    st.markdown(f"💬 **কাজের বিবরণ:** {t_row['task_detail']}")
+                    st.markdown(f"💰 **ফি:** {t_row['editor_payment']} BDT")
+                    if t_row['revision_note']:
+                        st.error(f"⚠️ **রিভিশন নোট:** {t_row['revision_note']}")
+                    
+                    with st.form(f"editor_form_{t_row['id']}"):
+                        new_status = st.selectbox("কাজের প্রগ্রেস:", ["Started", "Submitted"], index=0 if t_row['status']=="Pending" else 1)
+                        delivery_link = st.text_input("ওয়ার্ক/ডেলিভারি লিংক:", value=t_row['final_link'])
                         
-                        with st.form(f"editor_form_{t_row['id']}"):
-                            new_status = st.selectbox("কাজের প্রগ্রেস:", ["Started", "Submitted"], index=0 if t_row['status']=="Pending" else 1)
-                            delivery_link = st.text_input("ওয়ার্ক/ডেলিভারি লিংক:", value=t_row['final_link'])
-                            
-                            if st.form_submit_button("আপডেট সাবমিট করুন 🚀"):
-                                conn = get_db_connection()
-                                cursor = conn.cursor()
-                                cursor.execute("UPDATE tasks SET status=?, final_link=? WHERE id=?", (new_status, delivery_link, t_row['id']))
-                                conn.commit()
-                                conn.close()
-                                st.success("টাস্ক প্রগ্রেস ডাটাবেসে সেভ হয়েছে!")
-        show_editor_tasks()
+                        if st.form_submit_button("আপডেট সাবমিট করুন 🚀"):
+                            conn = get_db_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE tasks SET status=?, final_link=? WHERE id=?", (new_status, delivery_link, t_row['id']))
+                            conn.commit()
+                            conn.close()
+                            st.success("টাস্ক প্রগ্রেস ডাটাবেসে সেভ হয়েছে!")
+                            st.rerun()
 
-    # ==========================================
-    # 👮 অ্যাডমিন, সিইও, ফাউন্ডার ও ওনার প্যানেল
-    # ==========================================
+    # 👮 অ্যাডমিন, সিইও, কো-ফাউন্ডার ও মডারেটর মডিউলস
     else:
         menu_options = [
             "📊 লাইভ ড্যাশবোর্ড",
@@ -306,16 +315,13 @@ else:
         elif st.session_state.current_navigation == "💬 লাইভ চ্যাট রুম":
             st.title("💬 সেশন সিঙ্ক লাইভ চ্যাট হাব (Messenger Mode)")
             
-            @st.fragment(run_every=1)
-            def show_live_chats():
-                conn = get_db_connection()
-                df_chat_logs = pd.read_sql_query("SELECT * FROM chat_messages ORDER BY id ASC", conn)
-                conn.close()
-                st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
-                for _, chat in df_chat_logs.iterrows():
-                    st.markdown(f"<div class='global-chat-bubble'><b>{chat['sender_name']} [{chat['sender_role']}]:</b> {chat['msg']} <small style='color:#64748b; float:right;'>{chat['timestamp']}</small></div>", unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-            show_live_chats()
+            conn = get_db_connection()
+            df_chat_logs = pd.read_sql_query("SELECT * FROM chat_messages ORDER BY id ASC", conn)
+            conn.close()
+            st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
+            for _, chat in df_chat_logs.iterrows():
+                st.markdown(f"<div class='global-chat-bubble'><b>{chat['sender_name']} [{chat['sender_role']}]:</b> {chat['msg']} <small style='color:#64748b; float:right;'>{chat['timestamp']}</small></div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
             
             with st.form("chat_send_form", clear_on_submit=True):
                 msg_txt = st.text_input("মেসেজ ইনপুট করুন...")
@@ -361,7 +367,7 @@ else:
                 ed_name = st.text_input("অ্যাসাইনকৃত এডিটর নাম:")
                 ed_cost = st.number_input("এডিটর খরচ (BDT):", min_value=0.0)
                 op_cost = st.number_input("অপারেশনাল কস্ট (BDT):", min_value=0.0)
-                if st.form_submit_button("অर्डर সেভ করুন 💾"):
+                if st.form_submit_button("অর্ডার সেভ করুন 💾"):
                     conn = get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("INSERT INTO orders (date, client_name, client_number, service_name, total_price, advance_paid, due_amount, editor_name, editor_cost, operation_cost, month_tag) VALUES (?,?,?,?,?,0,?, ?,?,?,?)",
@@ -370,14 +376,14 @@ else:
                     conn.close()
                     st.success("অর্ডারটি ডাটাবেসে সেভ হয়েছে!")
 
-        # 🎯 6. টাস্ক ডিস্ট্রিবিউটর
+        # 🎯 ৬. টাস্ক ডিস্ট্রিবিউটর
         elif st.session_state.current_navigation == "🎯 টাস্ক ডিস্ট্রিবিউটর":
             st.title("🎯 টিম টাস্ক ডিস্ট্রিবিউটর টার্মিনাল")
             with st.form("task_dist_form", clear_on_submit=True):
                 t_client = st.text_input("ক্লায়েন্ট রেফারেন্স কোড:")
                 t_editor = st.text_input("টার্গেট কর্মী (Editor Username):")
                 t_detail = st.text_area("কাজের ডিটেইলস:")
-                t_payment = st.number_input("বাজেট/ফি:", min_value=0.0)
+                t_payment = st.number_input("বজেট/ফি:", min_value=0.0)
                 if st.form_submit_button("টাস্ক ও অর্ডার ইস্যু করুন 🚀"):
                     conn = get_db_connection()
                     cursor = conn.cursor()
@@ -390,26 +396,24 @@ else:
         # ⚡ ৭. মডারেটর লাইভ টাস্ক আপডেট
         elif st.session_state.current_navigation == "⚡ মডারেটর লাইভ টাস্ক আপডেট":
             st.title("⚡ মডারেটর লাইভ টাস্ক আপডেট টার্মিনাল")
-            @st.fragment(run_every=2)
-            def show_live_tasks_for_mod():
-                conn = get_db_connection()
-                tasks_current = pd.read_sql_query("SELECT * FROM tasks ORDER BY id DESC", conn)
-                conn.close()
-                for idx, t_row in tasks_current.iterrows():
-                    with st.expander(f"📌 টাস্ক আইডি: {t_row['id']} | কর্মী: {t_row['editor']} | স্ট্যাটাস: {t_row['status']}"):
-                        with st.form(f"mod_form_{t_row['id']}"):
-                            current_status = t_row['status'] if t_row['status'] in ["Pending", "Started", "Submitted", "Approved", "Revision"] else "Pending"
-                            m_status = st.selectbox("স্ট্যাটাস আপডেট:", ["Pending", "Started", "Submitted", "Approved", "Revision"], index=["Pending", "Started", "Submitted", "Approved", "Revision"].index(current_status))
-                            m_link = st.text_input("ফাইনাল ডেলিভারি লিংক:", value=t_row['final_link'])
-                            m_rev = st.text_input("রিভিশন নোট:", value=t_row['revision_note'])
-                            if st.form_submit_button("নোড আপডেট সাবমিট ⚙️"):
-                                conn = get_db_connection()
-                                cursor = conn.cursor()
-                                cursor.execute("UPDATE tasks SET status=?, final_link=?, revision_note=? WHERE id=?", (m_status, m_link, m_rev, t_row['id']))
-                                conn.commit()
-                                conn.close()
-                                st.success("টাস্ক লাইভ সিঙ্ক সফল!")
-            show_live_tasks_for_mod()
+            conn = get_db_connection()
+            tasks_current = pd.read_sql_query("SELECT * FROM tasks ORDER BY id DESC", conn)
+            conn.close()
+            for idx, t_row in tasks_current.iterrows():
+                with st.expander(f"📌 টাস্ক আইডি: {t_row['id']} | কর্মী: {t_row['editor']} | স্ট্যাটাস: {t_row['status']}"):
+                    with st.form(f"mod_form_{t_row['id']}"):
+                        current_status = t_row['status'] if t_row['status'] in ["Pending", "Started", "Submitted", "Approved", "Revision"] else "Pending"
+                        m_status = st.selectbox("স্ট্যাটাস আপডেট:", ["Pending", "Started", "Submitted", "Approved", "Revision"], index=["Pending", "Started", "Submitted", "Approved", "Revision"].index(current_status))
+                        m_link = st.text_input("ফাইনাল ডেলিভারি লিংক:", value=t_row['final_link'])
+                        m_rev = st.text_input("রিভিশন নোট:", value=t_row['revision_note'])
+                        if st.form_submit_button("নোড আপডেট সাবমিট ⚙️"):
+                            conn = get_db_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE tasks SET status=?, final_link=?, revision_note=? WHERE id=?", (m_status, m_link, m_rev, t_row['id']))
+                            conn.commit()
+                            conn.close()
+                            st.success("টাস্ক লাইভ সিঙ্ক সফল!")
+                            st.rerun()
 
         # 📉 ৮. লাইভ প্রফিট ও রিপোর্ট হাব (প্রটেক্টেড)
         elif is_verified and st.session_state.current_navigation == "📉 লাইভ প্রফিট ও রিপোর্ট হাব":
@@ -429,7 +433,7 @@ else:
         # 👮 ৯. অ্যাডমিন ও CTO প্যানেল (প্রটেক্টেড)
         elif is_verified and st.session_state.current_navigation == "👮 অ্যাডমিন ও CTO কন্ট্রোল প্যানেল":
             st.title("👮 অ্যাডমিন ও ওনার কন্ট্রোল প্যানেল")
-            st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
+            st.subheader("👥 টিম মেম্বারদের ভেরিফাইড গেটওয়ে স্ট্যাটাস")
             for idx, u_row in df_users_all.iterrows():
                 col_v1, col_v2 = st.columns([3, 1])
                 with col_v1:
@@ -444,15 +448,16 @@ else:
                             st.success("ইউজার ভেরিফাইড!")
                             st.rerun()
                     else:
-                        if st.button("ভেরিফিকেশন রিমুভ ⚠️", key=f"uv_btn_{u_row['username']}"):
-                            conn = get_db_connection()
-                            conn.cursor().execute("UPDATE users SET is_officer_verified=0 WHERE username=?", (u_row['username'],))
-                            conn.commit()
-                            conn.close()
-                            st.warning("ভেরিফিকেশন রিমুভড!")
-                            st.rerun()
+                        if u_row['is_officer_verified'] == 1 and u_row['username'] != 'reyadh':
+                            if st.button("ভেরিফিকেশন রিমুভ ⚠️", key=f"uv_btn_{u_row['username']}"):
+                                conn = get_db_connection()
+                                conn.cursor().execute("UPDATE users SET is_officer_verified=0 WHERE username=?", (u_row['username'],))
+                                conn.commit()
+                                conn.close()
+                                st.warning("ভেরিফিকেশন রিমুভড!")
+                                st.rerun()
 
-        # 🕵️ ১০. সিক্রেট ইনবক্স স্পাইডার (Spy) (প্রটেক্টেড)
+        # 🕵️ ১০. সিক্রেট ইনবক্স概念 স্পাইডার (Spy) (প্রটেক্টেড)
         elif is_verified and st.session_state.current_navigation == "🕵️ সিক্রেট ইনবক্স স্পাইডার (Spy)":
             st.title("🕵️ সিক্রেট ইনবক্স স্পাইডার (Enterprise Spy Terminal)")
             conn = get_db_connection()
@@ -461,11 +466,7 @@ else:
             st.dataframe(df_spy, use_container_width=True)
 
     # ==========================================
-    # ৪. গ্লোবাল রিলোডার ও লাইভ হার্টবিট থ্রেড লুপ
+    # ৫. গ্লোবাল ফুটার (অটো রিরান লুপ ফিক্সড)
     # ==========================================
     st.markdown("---")
-    st.caption(f"🟢 Server Node Status: Active | 🚀 Real-time Tracking Engine Active (1s heartbeats)")
-    
-    if st.session_state.current_navigation not in ["💬 লাইভ চ্যাট রুম", "⚡ মডারেটর লাইভ টাস্ক আপডেট"] and not is_editor:
-        time.sleep(1)
-        st.rerun()
+    st.caption(f"🟢 Server Node Status: Secure & Active | Core Database Synced Successfully")
